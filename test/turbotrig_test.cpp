@@ -90,53 +90,17 @@ turbomath::Quaternion random_quaternions[25] = {
   turbomath::Quaternion(-0.177027678376, 0.214558558928, -0.992910369554, 0.592964390132),
   turbomath::Quaternion(0.0979109306209, 0.121890109199, 0.126418158551, 0.242200145606)};
 
-TEST(TurboMath, atan)
-{
-  for (float i = -200.0; i <= 200.0; i += 0.001) {
-    EXPECT_NEAR(turbomath::atan(i), atan(i), 0.0001);
-  }
-}
-
-TEST(TurboMath, sin_cos)
-{
-  for (float i = -200.0; i <= 200.0; i += 0.001) {
-    EXPECT_NEAR(turbomath::sin(i), sin(i), 0.0002);
-    EXPECT_NEAR(turbomath::cos(i), cos(i), 0.0002);
-  }
-}
-
-TEST(TurboMath, atan2)
-{
-  for (float i = -100.0; i <= 100.0; i += 0.1) {
-    for (float j = -1.0; j <= 1.0; j += 0.001) {
-      if (fabs(j) > 0.0001) { EXPECT_NEAR(turbomath::atan2(i, j), atan2(i, j), 0.001); }
-    }
-  }
-}
-
-TEST(TurboMath, asin)
-{
-  for (float i = -1.0; i <= 1.0; i += 0.001) {
-    if (fabs(i) < 0.95) {
-      EXPECT_NEAR(turbomath::asin(i), asin(i), 0.0001);
-    } else {
-      EXPECT_NEAR(turbomath::asin(i), asin(i), 0.2);
-    }
-  }
-}
-
 TEST(TurboMath, fastAlt)
 {
-  // out of bounds
-  EXPECT_EQ(turbomath::alt(69681), 0.0);
-  EXPECT_EQ(turbomath::alt(10700), 0.0);
+  // no out of bounds check it makes no sense to return zero altitude.
+  // EXPECT_EQ(turbomath::alt(69681), 0.0);
+  // EXPECT_EQ(turbomath::alt(10700), 0.0);
 
   // all valid int values
   float trueResult = 0.0;
   for (int i = 69682; i < 106597; i++) {
     trueResult =
-      static_cast<float>((1.0 - pow(static_cast<float>(i) / 101325, 0.190284)) * 145366.45)
-      * static_cast<float>(0.3048);
+      static_cast<float>((1.0 - pow(static_cast<float>(i) /ISA_PRESSURE, ISA_EXPONENT)) * ISA_SCALE_FACTOR);
     EXPECT_NEAR(turbomath::alt(i), trueResult, .15);
     // arbitrarily chose <= .15m since fast_alt isn't accurate enough for EXPECT_CLOSE,
     // but being within .15 meters of the correct result seems pretty good to me

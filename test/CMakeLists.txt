@@ -16,9 +16,6 @@ find_package(GTest REQUIRED)
 find_package(Threads REQUIRED)  # Required for current gtest version, may be a bug with gtest?
 include_directories(${GTEST_INCLUDE_DIRS})
 
-include_directories(${EIGEN3_INCLUDE_DIRS})
-include_directories(/usr/include/eigen3)
-
 include_directories(.)
 add_executable(unit_tests
         ${ROSFLIGHT_SOURCES}
