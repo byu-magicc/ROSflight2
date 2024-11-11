@@ -41,13 +41,11 @@
 
 #include <cstdint>
 
-//#include <rosflight_enums.h>
-
 namespace rosflight_firmware
 {
 class CommLinkInterface
 {
-#define cast_in_range(val,type) (val<(uint8_t)(type::END))?(type)val:type::END
+#define cast_in_range(val,type) (static_cast<uint32_t>(val) < static_cast<uint32_t>(type::END)) ? static_cast<type>(val) : type::END
 
 public:
   enum class LogSeverity

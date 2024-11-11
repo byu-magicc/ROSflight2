@@ -101,6 +101,7 @@ bool Mavlink::handle_mavlink_message(const mavlink_message_t * const msg, CommMe
 
 void Mavlink::handle_msg_param_request_list(const mavlink_message_t * const msg, CommMessage *message)
 {
+  (void)(msg); // unused
   message->type = CommMessageType::MESSAGE_PARAM_REQUEST_LIST;
 }
 
@@ -220,6 +221,7 @@ void Mavlink::handle_msg_external_attitude(const mavlink_message_t * const msg, 
 
 void Mavlink::handle_msg_heartbeat(const mavlink_message_t * const msg, CommMessage *message)
 {
+  (void)(msg); // unused
   message->type = CommMessageType::MESSAGE_HEARTBEAT;
 }
 
@@ -253,8 +255,9 @@ void Mavlink::send_baro(uint8_t system_id, float altitude, float pressure, float
 void Mavlink::send_command_ack(uint8_t system_id, CommMessageCommand rosflight_cmd, RosflightCmdResponse success)
 {
   mavlink_message_t msg;
-  mavlink_msg_rosflight_cmd_ack_pack(system_id, compid_, &msg, (uint8_t)rosflight_cmd,
-                                     (success==RosflightCmdResponse::ROSFLIGHT_CMD_SUCCESS) ? (uint8_t)RosflightCmdResponse::ROSFLIGHT_CMD_SUCCESS : (uint8_t)RosflightCmdResponse::ROSFLIGHT_CMD_FAILED);
+  mavlink_msg_rosflight_cmd_ack_pack(system_id, compid_, &msg, static_cast<uint8_t>(rosflight_cmd),
+                                     (success==RosflightCmdResponse::ROSFLIGHT_CMD_SUCCESS) ? static_cast<uint8_t>(RosflightCmdResponse::ROSFLIGHT_CMD_SUCCESS)
+                                         : static_cast<uint8_t>(RosflightCmdResponse::ROSFLIGHT_CMD_FAILED));
   send_message(msg);
 }
 
@@ -420,7 +423,7 @@ void Mavlink::send_sonar(uint8_t system_id,
 {
   (void) type;
   mavlink_message_t msg;
-  mavlink_msg_small_range_pack(system_id, compid_, &msg, (uint8_t)RosFlightRangeType::ROSFLIGHT_RANGE_SONAR, range,
+  mavlink_msg_small_range_pack(system_id, compid_, &msg, static_cast<uint8_t>(RosFlightRangeType::ROSFLIGHT_RANGE_SONAR), range,
                                max_range, min_range);
   send_message(msg);
 }

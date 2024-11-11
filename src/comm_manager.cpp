@@ -410,6 +410,7 @@ void CommManager::receive(void)
 
 void CommManager::receive_msg_param_request_list(CommLinkInterface::CommMessage *message)
 {
+  (void)message; // unused
   send_params_index_ = 0;
 }
 
@@ -469,8 +470,7 @@ void CommManager::receive_msg_rosflight_cmd(CommLinkInterface::CommMessage *mess
         log(CommLinkInterface::LogSeverity::LOG_ERROR, "Unsupported CommLinkInterface::ROSFLIGHT CMD %d", message->rosflight_cmd_.command);
     }
   }
-  CommLinkInterface::RosflightCmdResponse response = ((uint8_t)result<(uint8_t)(CommLinkInterface::RosflightCmdResponse::END))? (CommLinkInterface::RosflightCmdResponse)result : CommLinkInterface::RosflightCmdResponse::END;
-  //CommLinkInterface::RosflightCmdResponse response = CommLinkInterface::cast_in_range(result,CommLinkInterface::RosflightCmdResponse);
+  CommLinkInterface::RosflightCmdResponse response = cast_in_range( result, CommLinkInterface::RosflightCmdResponse );
 
 
   comm_link_.send_command_ack(sysid_, message->rosflight_cmd_.command, response);
@@ -559,6 +559,7 @@ void CommManager::receive_msg_external_attitude(CommLinkInterface::CommMessage *
 
 void CommManager::receive_msg_heartbeat(CommLinkInterface::CommMessage *message)
 {
+  (void)message; // unused
   connected_ = true;
 
   if (have_backup_data_) {
