@@ -226,6 +226,12 @@ typedef enum
   PARAM_TYPE_INVALID
 } param_type_t;
 
+typedef union
+{
+  float fvalue;
+  int32_t ivalue;
+} param_value_t;
+
 class ROSflight;
 class Params
 {
@@ -233,11 +239,7 @@ public:
   static constexpr uint8_t PARAMS_NAME_LENGTH = 16;
 
 private:
-  union param_value_t
-  {
-    float fvalue;
-    int32_t ivalue;
-  };
+
 
   typedef struct
   {

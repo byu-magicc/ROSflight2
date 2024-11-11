@@ -46,14 +46,190 @@ void Mavlink::init(uint32_t baud_rate, uint32_t dev)
   initialized_ = true;
 }
 
-void Mavlink::receive(void)
+//////////////////////////////////////////////////////////////////
+//
+// Send
+//
+//////////////////////////////////////////////////////////////////
+
+bool Mavlink::parse_char(uint8_t ch, CommMessage *message) {
+  if( mavlink_parse_char(MAVLINK_COMM_0, ch, &in_buf_, &status_)) {
+   return handle_mavlink_message(&in_buf_, message);
+  }
+  return false;
+}
+
+// Rx Message Handlers
+bool Mavlink::handle_mavlink_message(const mavlink_message_t * const msg, CommMessage *message)
 {
-  while (board_.serial_bytes_available()) {
-    if (mavlink_parse_char(MAVLINK_COMM_0, board_.serial_read(), &in_buf_, &status_)) {
-      handle_mavlink_message();
-    }
+  bool found = true;
+  switch (msg->msgid) {
+    case MAVLINK_MSG_ID_OFFBOARD_CONTROL:
+      handle_msg_offboard_control(&in_buf_, message);
+      break;
+    case MAVLINK_MSG_ID_PARAM_REQUEST_LIST:
+      handle_msg_param_request_list(&in_buf_,message);
+      break;
+    case MAVLINK_MSG_ID_PARAM_REQUEST_READ:
+      handle_msg_param_request_read(&in_buf_,message);
+      break;
+    case MAVLINK_MSG_ID_PARAM_SET:
+      handle_msg_param_set(&in_buf_,message);
+      break;
+    case MAVLINK_MSG_ID_ROSFLIGHT_CMD:
+      handle_msg_rosflight_cmd(&in_buf_,message);
+      break;
+    case MAVLINK_MSG_ID_ROSFLIGHT_AUX_CMD:
+      handle_msg_rosflight_aux_cmd(&in_buf_,message);
+      break;
+    case MAVLINK_MSG_ID_TIMESYNC:
+      handle_msg_timesync(&in_buf_,message);
+      break;
+    case MAVLINK_MSG_ID_EXTERNAL_ATTITUDE:
+      handle_msg_external_attitude(&in_buf_,message);
+      break;
+    case MAVLINK_MSG_ID_HEARTBEAT:
+      handle_msg_heartbeat(&in_buf_,message);
+      break;
+    default:
+      message->type = CommMessageType::END;
+      found = false;
+      break;
+  }
+  return found;
+}
+
+void Mavlink::handle_msg_param_request_list(const mavlink_message_t * const msg, CommMessage *message)
+{
+  message->type = CommMessageType::MESSAGE_PARAM_REQUEST_LIST;
+}
+
+void Mavlink::handle_msg_param_request_read(const mavlink_message_t * const msg, CommMessage *message)
+{
+  message->type = CommMessageType::MESSAGE_PARAM_REQUEST_READ;
+  mavlink_param_request_read_t read;
+  mavlink_msg_param_request_read_decode(msg, &read);
+
+  message->param_read_.id = read.param_index;
+  strncpy(message->param_read_.name, read.param_id, Params::PARAMS_NAME_LENGTH<16?Params::PARAMS_NAME_LENGTH:16);
+}
+
+void Mavlink::handle_msg_param_set(const mavlink_message_t * const msg, CommMessage *message)
+{
+  message->type = CommMessageType::MESSAGE_PARAM_SET;
+  mavlink_param_set_t set;
+  mavlink_msg_param_set_decode(msg, &set);
+
+  mavlink_param_union_t param;
+  param.param_float = set.param_value;
+  param.type = set.param_type;
+
+  switch (param.type) {
+    case MAV_PARAM_TYPE_INT32:
+      message->param_set_.value.ivalue = param.param_int32;
+      break;
+    case MAV_PARAM_TYPE_REAL32:
+      message->param_set_.value.fvalue = param.param_float;
+      break;
+    default:
+      // unsupported parameter type
+      break;
   }
 }
+
+void Mavlink::handle_msg_rosflight_cmd(const mavlink_message_t * const msg, CommMessage *message)
+{
+  message->type = CommMessageType::MESSAGE_ROSFLIGHT_CMD;
+  mavlink_rosflight_cmd_t cmd;
+  mavlink_msg_rosflight_cmd_decode(msg, &cmd);
+
+  message->rosflight_cmd_.command = cast_in_range(cmd.command, CommMessageCommand);
+}
+
+void Mavlink::handle_msg_rosflight_aux_cmd(const mavlink_message_t * const msg, CommMessage *message)
+{
+  message->type = CommMessageType::MESSAGE_ROSFLIGHT_AUX_CMD;
+  mavlink_rosflight_aux_cmd_t cmd;
+  mavlink_msg_rosflight_aux_cmd_decode(msg, &cmd);
+
+  int len = Mixer::NUM_TOTAL_OUTPUTS<14?Mixer::NUM_TOTAL_OUTPUTS:14;
+
+  for (int i = 0; i < len; i++) {
+    message->new_aux_command_.channel[i].value = cmd.aux_cmd_array[i];
+
+    switch ( cast_in_range(cmd.type_array[i],RosflightAuxCmdType) ) {
+      case RosflightAuxCmdType::SERVO:
+        message->new_aux_command_.channel[i].type = Mixer::S;
+        break;
+      case RosflightAuxCmdType::MOTOR:
+        message->new_aux_command_.channel[i].type = Mixer::M;
+        break;
+      case RosflightAuxCmdType::DISABLED:
+      default:
+        message->new_aux_command_.channel[i].type = Mixer::NONE;
+        message->new_aux_command_.channel[i].value =0;
+        break;
+    }
+  }
+    }
+
+void Mavlink::handle_msg_timesync(const mavlink_message_t * const msg, CommMessage *message)
+{
+  message->type = CommMessageType::MESSAGE_TIMESYNC;
+  mavlink_timesync_t tsync;
+  mavlink_msg_timesync_decode(msg, &tsync);
+
+  message->time_sync_.local  = tsync.tc1; // client
+  message->time_sync_.remote = tsync.ts1; // server
+}
+
+void Mavlink::handle_msg_offboard_control(const mavlink_message_t * const msg, CommMessage *message)
+{
+  message->type = CommMessageType::MESSAGE_OFFBOARD_CONTROL;
+  mavlink_offboard_control_t ctrl;
+  mavlink_msg_offboard_control_decode(msg, &ctrl);
+
+  message->offboard_control_.mode = cast_in_range(ctrl.mode,OffboardControlMode);
+
+  message->offboard_control_.U[0].value = ctrl.x;
+  message->offboard_control_.U[1].value = ctrl.y;
+  message->offboard_control_.U[2].value = ctrl.z;
+  message->offboard_control_.U[3].value = ctrl.F;
+  message->offboard_control_.U[4].value = 0;
+  message->offboard_control_.U[5].value = 0;
+
+  message->offboard_control_.U[0].valid = !(ctrl.ignore & 0x01);
+  message->offboard_control_.U[1].valid = !(ctrl.ignore & 0x02);
+  message->offboard_control_.U[2].valid = !(ctrl.ignore & 0x04);
+  message->offboard_control_.U[3].valid = !(ctrl.ignore & 0x08);
+  message->offboard_control_.U[4].valid = false;
+  message->offboard_control_.U[5].valid = false;
+}
+
+void Mavlink::handle_msg_external_attitude(const mavlink_message_t * const msg, CommMessage *message)
+{
+  message->type = CommMessageType::MESSAGE_EXTERNAL_ATTITUDE;
+  mavlink_external_attitude_t q_msg;
+  mavlink_msg_external_attitude_decode(msg, &q_msg);
+
+  message->external_attitude_quaternion_.q[0] =  q_msg.qw;
+  message->external_attitude_quaternion_.q[1] =  q_msg.qx;
+  message->external_attitude_quaternion_.q[2] =  q_msg.qy;
+  message->external_attitude_quaternion_.q[3] =  q_msg.qz;
+  }
+
+void Mavlink::handle_msg_heartbeat(const mavlink_message_t * const msg, CommMessage *message)
+{
+  message->type = CommMessageType::MESSAGE_HEARTBEAT;
+}
+
+
+
+//////////////////////////////////////////////////////////////////
+//
+// Send
+//
+//////////////////////////////////////////////////////////////////
 
 void Mavlink::send_attitude_quaternion(uint8_t system_id, uint64_t timestamp_us,
                                        const turbomath::Quaternion & attitude,
@@ -73,48 +249,12 @@ void Mavlink::send_baro(uint8_t system_id, float altitude, float pressure, float
   send_message(msg);
 }
 
-void Mavlink::send_command_ack(uint8_t system_id, Command command, bool success)
+//void Mavlink::send_msg_rosflight_cmd_ack(uint8_t system_id, ROSFLIGHT_CMD rosflight_cmd, bool success)
+void Mavlink::send_command_ack(uint8_t system_id, CommMessageCommand rosflight_cmd, RosflightCmdResponse success)
 {
-  ROSFLIGHT_CMD rosflight_cmd = ROSFLIGHT_CMD_ENUM_END;
-  switch (command) {
-    case CommLinkInterface::Command::COMMAND_READ_PARAMS:
-      rosflight_cmd = ROSFLIGHT_CMD_READ_PARAMS;
-      break;
-    case CommLinkInterface::Command::COMMAND_WRITE_PARAMS:
-      rosflight_cmd = ROSFLIGHT_CMD_WRITE_PARAMS;
-      break;
-    case CommLinkInterface::Command::COMMAND_SET_PARAM_DEFAULTS:
-      rosflight_cmd = ROSFLIGHT_CMD_SET_PARAM_DEFAULTS;
-      break;
-    case CommLinkInterface::Command::COMMAND_ACCEL_CALIBRATION:
-      rosflight_cmd = ROSFLIGHT_CMD_ACCEL_CALIBRATION;
-      break;
-    case CommLinkInterface::Command::COMMAND_GYRO_CALIBRATION:
-      rosflight_cmd = ROSFLIGHT_CMD_GYRO_CALIBRATION;
-      break;
-    case CommLinkInterface::Command::COMMAND_BARO_CALIBRATION:
-      rosflight_cmd = ROSFLIGHT_CMD_BARO_CALIBRATION;
-      break;
-    case CommLinkInterface::Command::COMMAND_AIRSPEED_CALIBRATION:
-      rosflight_cmd = ROSFLIGHT_CMD_AIRSPEED_CALIBRATION;
-      break;
-    case CommLinkInterface::Command::COMMAND_RC_CALIBRATION:
-      rosflight_cmd = ROSFLIGHT_CMD_RC_CALIBRATION;
-      break;
-    case CommLinkInterface::Command::COMMAND_REBOOT:
-      rosflight_cmd = ROSFLIGHT_CMD_REBOOT;
-      break;
-    case CommLinkInterface::Command::COMMAND_REBOOT_TO_BOOTLOADER:
-      rosflight_cmd = ROSFLIGHT_CMD_REBOOT_TO_BOOTLOADER;
-      break;
-    case CommLinkInterface::Command::COMMAND_SEND_VERSION:
-      rosflight_cmd = ROSFLIGHT_CMD_SEND_VERSION;
-      break;
-  }
-
   mavlink_message_t msg;
-  mavlink_msg_rosflight_cmd_ack_pack(system_id, compid_, &msg, rosflight_cmd,
-                                     (success) ? ROSFLIGHT_CMD_SUCCESS : ROSFLIGHT_CMD_FAILED);
+  mavlink_msg_rosflight_cmd_ack_pack(system_id, compid_, &msg, (uint8_t)rosflight_cmd,
+                                     (success==RosflightCmdResponse::ROSFLIGHT_CMD_SUCCESS) ? (uint8_t)RosflightCmdResponse::ROSFLIGHT_CMD_SUCCESS : (uint8_t)RosflightCmdResponse::ROSFLIGHT_CMD_FAILED);
   send_message(msg);
 }
 
@@ -204,6 +344,8 @@ void Mavlink::send_log_message(uint8_t system_id, LogSeverity severity, const ch
     case CommLinkInterface::LogSeverity::LOG_CRITICAL:
       mavlink_severity = MAV_SEVERITY_CRITICAL;
       break;
+    default:
+      break;
   }
 
   mavlink_message_t msg;
@@ -278,7 +420,7 @@ void Mavlink::send_sonar(uint8_t system_id,
 {
   (void) type;
   mavlink_message_t msg;
-  mavlink_msg_small_range_pack(system_id, compid_, &msg, /* TODO */ ROSFLIGHT_RANGE_SONAR, range,
+  mavlink_msg_small_range_pack(system_id, compid_, &msg, (uint8_t)RosFlightRangeType::ROSFLIGHT_RANGE_SONAR, range,
                                max_range, min_range);
   send_message(msg);
 }
@@ -327,233 +469,6 @@ void Mavlink::send_message(const mavlink_message_t & msg, uint8_t qos)
     uint8_t data[MAVLINK_MAX_PACKET_LEN];
     uint16_t len = mavlink_msg_to_send_buffer(data, &msg);
     board_.serial_write(data, len, qos);
-  }
-}
-
-void Mavlink::handle_msg_param_request_list(const mavlink_message_t * const msg)
-{
-  mavlink_param_request_list_t list;
-  mavlink_msg_param_request_list_decode(msg, &list);
-
-  if (listener_ != nullptr) { listener_->param_request_list_callback(list.target_system); }
-}
-
-void Mavlink::handle_msg_param_request_read(const mavlink_message_t * const msg)
-{
-  mavlink_param_request_read_t read;
-  mavlink_msg_param_request_read_decode(msg, &read);
-
-  if (listener_ != nullptr) {
-    listener_->param_request_read_callback(read.target_system, read.param_id, read.param_index);
-  }
-}
-
-void Mavlink::handle_msg_param_set(const mavlink_message_t * const msg)
-{
-  mavlink_param_set_t set;
-  mavlink_msg_param_set_decode(msg, &set);
-
-  mavlink_param_union_t param;
-  param.param_float = set.param_value;
-  param.type = set.param_type;
-
-  switch (param.type) {
-    case MAV_PARAM_TYPE_INT32:
-      if (listener_ != nullptr) {
-        listener_->param_set_int_callback(set.target_system, set.param_id, param.param_int32);
-      }
-      break;
-    case MAV_PARAM_TYPE_REAL32:
-      if (listener_ != nullptr) {
-        listener_->param_set_float_callback(set.target_system, set.param_id, param.param_float);
-      }
-      break;
-    default:
-      // unsupported parameter type
-      break;
-  }
-}
-
-void Mavlink::handle_msg_rosflight_cmd(const mavlink_message_t * const msg)
-{
-  mavlink_rosflight_cmd_t cmd;
-  mavlink_msg_rosflight_cmd_decode(msg, &cmd);
-
-  CommLinkInterface::Command command;
-  switch (cmd.command) {
-    case ROSFLIGHT_CMD_READ_PARAMS:
-      command = CommLinkInterface::Command::COMMAND_READ_PARAMS;
-      break;
-    case ROSFLIGHT_CMD_WRITE_PARAMS:
-      command = CommLinkInterface::Command::COMMAND_WRITE_PARAMS;
-      break;
-    case ROSFLIGHT_CMD_SET_PARAM_DEFAULTS:
-      command = CommLinkInterface::Command::COMMAND_SET_PARAM_DEFAULTS;
-      break;
-    case ROSFLIGHT_CMD_ACCEL_CALIBRATION:
-      command = CommLinkInterface::Command::COMMAND_ACCEL_CALIBRATION;
-      break;
-    case ROSFLIGHT_CMD_GYRO_CALIBRATION:
-      command = CommLinkInterface::Command::COMMAND_GYRO_CALIBRATION;
-      break;
-    case ROSFLIGHT_CMD_BARO_CALIBRATION:
-      command = CommLinkInterface::Command::COMMAND_BARO_CALIBRATION;
-      break;
-    case ROSFLIGHT_CMD_AIRSPEED_CALIBRATION:
-      command = CommLinkInterface::Command::COMMAND_AIRSPEED_CALIBRATION;
-      break;
-    case ROSFLIGHT_CMD_RC_CALIBRATION:
-      command = CommLinkInterface::Command::COMMAND_RC_CALIBRATION;
-      break;
-    case ROSFLIGHT_CMD_REBOOT:
-      command = CommLinkInterface::Command::COMMAND_REBOOT;
-      break;
-    case ROSFLIGHT_CMD_REBOOT_TO_BOOTLOADER:
-      command = CommLinkInterface::Command::COMMAND_REBOOT_TO_BOOTLOADER;
-      break;
-    case ROSFLIGHT_CMD_SEND_VERSION:
-      command = CommLinkInterface::Command::COMMAND_SEND_VERSION;
-      break;
-    default: // unsupported command; report failure then return without calling command callback
-      mavlink_message_t out_msg;
-      mavlink_msg_rosflight_cmd_ack_pack(msg->sysid, compid_, &out_msg, cmd.command,
-                                         ROSFLIGHT_CMD_FAILED);
-      send_message(out_msg);
-      // log(LogSeverity::LOG_ERROR, "Unsupported ROSFLIGHT CMD %d", command);
-      return;
-  }
-
-  if (listener_ != nullptr) { listener_->command_callback(command); }
-}
-
-void Mavlink::handle_msg_rosflight_aux_cmd(const mavlink_message_t * const msg)
-{
-  mavlink_rosflight_aux_cmd_t cmd;
-  mavlink_msg_rosflight_aux_cmd_decode(msg, &cmd);
-
-  CommLinkInterface::AuxCommand command;
-  // Repack mavlink message into CommLinkInterface::AuxCommand
-  for (int i = 0; i < 14; i++) {
-    switch (cmd.type_array[i]) {
-      case DISABLED:
-        command.cmd_array[i].type = CommLinkInterface::AuxCommand::Type::DISABLED;
-        break;
-      case SERVO:
-        command.cmd_array[i].type = CommLinkInterface::AuxCommand::Type::SERVO;
-        break;
-      case MOTOR:
-        command.cmd_array[i].type = CommLinkInterface::AuxCommand::Type::MOTOR;
-        break;
-      default:
-        // Invalid channel mode; log an error and return with calling callback
-        // log(CommLinkInterface::LogSeverity::LOG_ERROR, "Unsupported AUX_CMD_CHANNEL_MODE %d",
-        // cmd.type_array[i]);
-        return;
-    }
-
-    command.cmd_array[i].value = cmd.aux_cmd_array[i];
-  }
-
-  // call callback after all channels have been repacked
-  if (listener_ != nullptr) { listener_->aux_command_callback(command); }
-}
-
-void Mavlink::handle_msg_timesync(const mavlink_message_t * const msg)
-{
-  mavlink_timesync_t tsync;
-  mavlink_msg_timesync_decode(msg, &tsync);
-
-  if (listener_ != nullptr) { listener_->timesync_callback(tsync.tc1, tsync.ts1); }
-}
-
-void Mavlink::handle_msg_offboard_control(const mavlink_message_t * const msg)
-{
-  mavlink_offboard_control_t ctrl;
-  mavlink_msg_offboard_control_decode(msg, &ctrl);
-
-  CommLinkInterface::OffboardControl control;
-  switch (ctrl.mode) {
-    case MODE_PASS_THROUGH:
-      control.mode = CommLinkInterface::OffboardControl::Mode::PASS_THROUGH;
-      break;
-    case MODE_ROLLRATE_PITCHRATE_YAWRATE_THROTTLE:
-      control.mode = CommLinkInterface::OffboardControl::Mode::ROLLRATE_PITCHRATE_YAWRATE_THROTTLE;
-      break;
-    case MODE_ROLL_PITCH_YAWRATE_THROTTLE:
-      control.mode = CommLinkInterface::OffboardControl::Mode::ROLL_PITCH_YAWRATE_THROTTLE;
-      break;
-    default:
-      // invalid mode; ignore message and return without calling callback
-      return;
-  }
-
-  control.x.value = ctrl.x;
-  control.y.value = ctrl.y;
-  control.z.value = ctrl.z;
-  control.F.value = ctrl.F;
-
-  control.x.valid = !(ctrl.ignore & IGNORE_VALUE1);
-  control.y.valid = !(ctrl.ignore & IGNORE_VALUE2);
-  control.z.valid = !(ctrl.ignore & IGNORE_VALUE3);
-  control.F.valid = !(ctrl.ignore & IGNORE_VALUE4);
-
-  if (listener_ != nullptr) { listener_->offboard_control_callback(control); }
-}
-
-void Mavlink::handle_msg_external_attitude(const mavlink_message_t * const msg)
-{
-  mavlink_external_attitude_t q_msg;
-  mavlink_msg_external_attitude_decode(msg, &q_msg);
-
-  turbomath::Quaternion q_extatt;
-  q_extatt.w = q_msg.qw;
-  q_extatt.x = q_msg.qx;
-  q_extatt.y = q_msg.qy;
-  q_extatt.z = q_msg.qz;
-
-  if (listener_ != nullptr) { listener_->external_attitude_callback(q_extatt); }
-}
-
-void Mavlink::handle_msg_heartbeat(const mavlink_message_t * const msg)
-{
-  // none of the information from the heartbeat is used
-  (void) msg;
-
-  if (listener_ != nullptr) { listener_->heartbeat_callback(); }
-}
-
-void Mavlink::handle_mavlink_message()
-{
-  switch (in_buf_.msgid) {
-    case MAVLINK_MSG_ID_OFFBOARD_CONTROL:
-      handle_msg_offboard_control(&in_buf_);
-      break;
-    case MAVLINK_MSG_ID_PARAM_REQUEST_LIST:
-      handle_msg_param_request_list(&in_buf_);
-      break;
-    case MAVLINK_MSG_ID_PARAM_REQUEST_READ:
-      handle_msg_param_request_read(&in_buf_);
-      break;
-    case MAVLINK_MSG_ID_PARAM_SET:
-      handle_msg_param_set(&in_buf_);
-      break;
-    case MAVLINK_MSG_ID_ROSFLIGHT_CMD:
-      handle_msg_rosflight_cmd(&in_buf_);
-      break;
-    case MAVLINK_MSG_ID_ROSFLIGHT_AUX_CMD:
-      handle_msg_rosflight_aux_cmd(&in_buf_);
-      break;
-    case MAVLINK_MSG_ID_TIMESYNC:
-      handle_msg_timesync(&in_buf_);
-      break;
-    case MAVLINK_MSG_ID_EXTERNAL_ATTITUDE:
-      handle_msg_external_attitude(&in_buf_);
-      break;
-    case MAVLINK_MSG_ID_HEARTBEAT:
-      handle_msg_heartbeat(&in_buf_);
-      break;
-    default:
-      break;
   }
 }
 

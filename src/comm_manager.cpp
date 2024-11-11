@@ -71,7 +71,7 @@ CommManager::CommManager(ROSflight & rf, CommLinkInterface & comm_link)
     , comm_link_(comm_link)
 {}
 
-// function definitions
+
 void CommManager::init()
 {
   comm_link_.init(static_cast<uint32_t>(RF_.params_.get_param_int(PARAM_BAUD_RATE)),
@@ -124,203 +124,6 @@ void CommManager::send_param_value(uint16_t param_id)
   }
 }
 
-void CommManager::param_request_list_callback(uint8_t target_system)
-{
-  if (target_system == sysid_) { send_params_index_ = 0; }
-}
-
-void CommManager::param_request_read_callback(uint8_t target_system, const char * const param_name,
-                                              int16_t param_index)
-{
-  if (target_system == sysid_) {
-    uint16_t id = (param_index < 0) ? RF_.params_.lookup_param_id(param_name)
-                                    : static_cast<uint16_t>(param_index);
-
-    if (id < PARAMS_COUNT) { send_param_value(id); }
-  }
-}
-
-void CommManager::param_set_int_callback(uint8_t target_system, const char * const param_name,
-                                         int32_t param_value)
-{
-  if (target_system == sysid_) {
-    uint16_t id = RF_.params_.lookup_param_id(param_name);
-
-    if (id < PARAMS_COUNT && RF_.params_.get_param_type(id) == PARAM_TYPE_INT32) {
-      RF_.params_.set_param_int(id, param_value);
-    }
-  }
-}
-
-void CommManager::param_set_float_callback(uint8_t target_system, const char * const param_name,
-                                           float param_value)
-{
-  if (target_system == sysid_) {
-    uint16_t id = RF_.params_.lookup_param_id(param_name);
-
-    if (id < PARAMS_COUNT && RF_.params_.get_param_type(id) == PARAM_TYPE_FLOAT) {
-      RF_.params_.set_param_float(id, param_value);
-    }
-  }
-}
-
-void CommManager::command_callback(CommLinkInterface::Command command)
-{
-  bool result;
-  bool reboot_flag = false;
-  bool reboot_to_bootloader_flag = false;
-
-  // None of these actions can be performed if we are armed
-  if (RF_.state_manager_.state().armed) {
-    result = false;
-  } else {
-    result = true;
-    switch (command) {
-      case CommLinkInterface::Command::COMMAND_READ_PARAMS:
-        result = RF_.params_.read();
-        break;
-      case CommLinkInterface::Command::COMMAND_WRITE_PARAMS:
-        result = RF_.params_.write();
-        break;
-      case CommLinkInterface::Command::COMMAND_SET_PARAM_DEFAULTS:
-        RF_.params_.set_defaults();
-        break;
-      case CommLinkInterface::Command::COMMAND_ACCEL_CALIBRATION:
-        result = RF_.sensors_.start_imu_calibration();
-        break;
-      case CommLinkInterface::Command::COMMAND_GYRO_CALIBRATION:
-        result = RF_.sensors_.start_gyro_calibration();
-        break;
-      case CommLinkInterface::Command::COMMAND_BARO_CALIBRATION:
-        result = RF_.sensors_.start_baro_calibration();
-        break;
-      case CommLinkInterface::Command::COMMAND_AIRSPEED_CALIBRATION:
-        result = RF_.sensors_.start_diff_pressure_calibration();
-        break;
-      case CommLinkInterface::Command::COMMAND_RC_CALIBRATION:
-        RF_.controller_.calculate_equilbrium_torque_from_rc();
-        break;
-      case CommLinkInterface::Command::COMMAND_REBOOT:
-        reboot_flag = true;
-        break;
-      case CommLinkInterface::Command::COMMAND_REBOOT_TO_BOOTLOADER:
-        reboot_to_bootloader_flag = true;
-        break;
-      case CommLinkInterface::Command::COMMAND_SEND_VERSION:
-        comm_link_.send_version(sysid_, GIT_VERSION_STRING);
-        break;
-    }
-  }
-
-  comm_link_.send_command_ack(sysid_, command, result);
-
-  if (reboot_flag || reboot_to_bootloader_flag) {
-    RF_.board_.clock_delay(20);
-    RF_.board_.board_reset(reboot_to_bootloader_flag);
-  }
-  RF_.board_.serial_flush();
-}
-
-void CommManager::timesync_callback(int64_t tc1, int64_t ts1)
-{
-  uint64_t now_us = RF_.board_.clock_micros();
-
-  if (tc1 == 0) {
-    // check that this is a request, not a response
-    comm_link_.send_timesync(sysid_, static_cast<int64_t>(now_us) * 1000, ts1);
-  }
-}
-
-void CommManager::offboard_control_callback(const CommLinkInterface::OffboardControl & control)
-{
-  // put values into a new command struct
-  control_t new_offboard_command;
-  new_offboard_command.x.value = control.x.value;
-  new_offboard_command.y.value = control.y.value;
-  new_offboard_command.z.value = control.z.value;
-  new_offboard_command.F.value = control.F.value;
-
-  // Move flags into standard message
-  new_offboard_command.x.active = control.x.valid;
-  new_offboard_command.y.active = control.y.valid;
-  new_offboard_command.z.active = control.z.valid;
-  new_offboard_command.F.active = control.F.valid;
-
-  // translate modes into standard message
-  switch (control.mode) {
-    case CommLinkInterface::OffboardControl::Mode::PASS_THROUGH:
-      new_offboard_command.x.type = PASSTHROUGH;
-      new_offboard_command.y.type = PASSTHROUGH;
-      new_offboard_command.z.type = PASSTHROUGH;
-      new_offboard_command.F.type = THROTTLE;
-      break;
-    case CommLinkInterface::OffboardControl::Mode::ROLLRATE_PITCHRATE_YAWRATE_THROTTLE:
-      new_offboard_command.x.type = RATE;
-      new_offboard_command.y.type = RATE;
-      new_offboard_command.z.type = RATE;
-      new_offboard_command.F.type = THROTTLE;
-      break;
-    case CommLinkInterface::OffboardControl::Mode::ROLL_PITCH_YAWRATE_THROTTLE:
-      new_offboard_command.x.type = ANGLE;
-      new_offboard_command.y.type = ANGLE;
-      new_offboard_command.z.type = RATE;
-      new_offboard_command.F.type = THROTTLE;
-      break;
-  }
-
-  // Tell the command_manager that we have a new command we need to mux
-  new_offboard_command.stamp_ms = RF_.board_.clock_millis();
-  RF_.command_manager_.set_new_offboard_command(new_offboard_command);
-}
-
-void CommManager::aux_command_callback(const CommLinkInterface::AuxCommand & command)
-{
-  Mixer::aux_command_t new_aux_command;
-
-  for (int i = 0; i < 14; i++) {
-    switch (command.cmd_array[i].type) {
-      case CommLinkInterface::AuxCommand::Type::DISABLED:
-        // Channel is either not used or is controlled by the mixer
-        new_aux_command.channel[i].type = Mixer::NONE;
-        new_aux_command.channel[i].value = 0;
-        break;
-      case CommLinkInterface::AuxCommand::Type::SERVO:
-        // PWM value should be mapped to servo position
-        new_aux_command.channel[i].type = Mixer::S;
-        new_aux_command.channel[i].value = command.cmd_array[i].value;
-        break;
-      case CommLinkInterface::AuxCommand::Type::MOTOR:
-        // PWM value should be mapped to motor speed
-        new_aux_command.channel[i].type = Mixer::M;
-        new_aux_command.channel[i].value = command.cmd_array[i].value;
-        break;
-    }
-  }
-
-  // Send the new aux_command to the mixer
-  RF_.mixer_.set_new_aux_command(new_aux_command);
-}
-
-void CommManager::external_attitude_callback(const turbomath::Quaternion & q)
-{
-  RF_.estimator_.set_external_attitude_update(q);
-}
-
-void CommManager::heartbeat_callback(void)
-{
-  // receiving a heartbeat implies that a connection has been made
-  // to the off-board computer.
-  connected_ = true;
-
-  // send backup data if we have it buffered
-  if (have_backup_data_) {
-    comm_link_.send_error_data(sysid_, backup_data_buffer_);
-    have_backup_data_ = false;
-  }
-}
-
-// function definitions
-void CommManager::receive(void) { comm_link_.receive(); }
 
 void CommManager::log(CommLinkInterface::LogSeverity severity, const char * fmt, ...)
 {
@@ -558,41 +361,217 @@ void CommManager::Stream::set_rate(uint32_t rate_hz)
   period_us_ = (rate_hz == 0) ? 0 : 1000000 / rate_hz;
 }
 
-// void Mavlink::mavlink_send_named_command_struct(const char *const name, control_t command_struct)
-//{
-//  uint8_t control_mode;
-//  if (command_struct.x.type == RATE && command_struct.y.type == RATE)
-//  {
-//    control_mode = MODE_ROLLRATE_PITCHRATE_YAWRATE_THROTTLE;
-//  }
-//  else if (command_struct.x.type == ANGLE && command_struct.y.type == ANGLE)
-//  {
-//    if (command_struct.x.type == ALTITUDE)
-//    {
-//      control_mode = MODE_ROLL_PITCH_YAWRATE_ALTITUDE;
-//    }
-//    else
-//    {
-//      control_mode = MODE_ROLL_PITCH_YAWRATE_THROTTLE;
-//    }
-//  }
-//  else
-//  {
-//    control_mode = MODE_PASS_THROUGH;
-//  }
-//  uint8_t ignore = !(command_struct.x.active) ||
-//                   !(command_struct.y.active) << 1 ||
-//                   !(command_struct.z.active) << 2 ||
-//                   !(command_struct.F.active) << 3;
-//  mavlink_message_t msg;
-//  mavlink_msg_named_command_struct_pack(sysid, compid, &msg, name,
-//                                        control_mode,
-//                                        ignore,
-//                                        command_struct.x.value,
-//                                        command_struct.y.value,
-//                                        command_struct.z.value,
-//                                        command_struct.F.value);
-//  send_message(msg);
-//}
 
-} // namespace rosflight_firmware
+void CommManager::receive(void)
+{
+  CommLinkInterface::CommMessage message;
+
+  //PTT This could hang if there is too much incomming serial data!
+  while (RF_.board_.serial_bytes_available())
+  {
+    if (comm_link_.parse_char(RF_.board_.serial_read(), &message))
+    {
+      switch(message.type)
+      {
+        case CommLinkInterface::CommMessageType::MESSAGE_OFFBOARD_CONTROL:
+          receive_msg_offboard_control(&message);
+          break;
+        case CommLinkInterface::CommMessageType::MESSAGE_PARAM_REQUEST_LIST:
+          receive_msg_param_request_list(&message);
+          break;
+        case CommLinkInterface::CommMessageType::MESSAGE_PARAM_REQUEST_READ:
+          receive_msg_param_request_read(&message);
+          break;
+        case CommLinkInterface::CommMessageType::MESSAGE_PARAM_SET:
+          receive_msg_param_set(&message);
+          break;
+        case CommLinkInterface::CommMessageType::MESSAGE_ROSFLIGHT_CMD:
+          receive_msg_rosflight_cmd(&message);
+          break;
+        case CommLinkInterface::CommMessageType::MESSAGE_ROSFLIGHT_AUX_CMD:
+          receive_msg_rosflight_aux_cmd(&message);
+          break;
+        case CommLinkInterface::CommMessageType::MESSAGE_TIMESYNC:
+          receive_msg_timesync(&message);
+          break;
+        case CommLinkInterface::CommMessageType::MESSAGE_EXTERNAL_ATTITUDE:
+          receive_msg_external_attitude(&message);
+          break;
+        case CommLinkInterface::CommMessageType::MESSAGE_HEARTBEAT:
+          receive_msg_heartbeat(&message);
+          break;
+        default:
+          break; // Message not recognized
+      }
+    }
+  }
+}
+
+
+void CommManager::receive_msg_param_request_list(CommLinkInterface::CommMessage *message)
+{
+  send_params_index_ = 0;
+}
+
+void CommManager::receive_msg_param_request_read(CommLinkInterface::CommMessage *message)
+{
+  uint16_t id = (message->param_read_.id < 0) ? RF_.params_.lookup_param_id(message->param_read_.name)
+                                  : static_cast<uint16_t>(message->param_read_.id);
+  if (id < PARAMS_COUNT) { send_param_value(id); }
+}
+
+void CommManager::receive_msg_param_set(CommLinkInterface::CommMessage *message)
+{
+  uint16_t id = RF_.params_.lookup_param_id(message->param_set_.name);
+
+  if (id < PARAMS_COUNT)
+  {
+    if(RF_.params_.get_param_type(id) == PARAM_TYPE_FLOAT)
+    {
+      RF_.params_.set_param_float(id, message->param_set_.value.fvalue);
+    }
+    else if(RF_.params_.get_param_type(id) == PARAM_TYPE_INT32)
+    {
+      RF_.params_.set_param_int(id, message->param_set_.value.ivalue);
+    }
+  }
+}
+
+void CommManager::receive_msg_rosflight_cmd(CommLinkInterface::CommMessage *message)
+{
+  bool result = true;
+  bool reboot_flag = false;
+  bool reboot_to_bootloader_flag = false;
+
+  // None of these actions can be performed if we are armed
+  if (RF_.state_manager_.state().armed) {
+    result = false;
+  } else {
+    result = true;
+
+    switch (message->rosflight_cmd_.command)
+    {
+      case CommLinkInterface::CommMessageCommand::ROSFLIGHT_CMD_READ_PARAMS:           result = RF_.params_.read(); break;
+      case CommLinkInterface::CommMessageCommand::ROSFLIGHT_CMD_WRITE_PARAMS:          result = RF_.params_.write(); break;
+      case CommLinkInterface::CommMessageCommand::ROSFLIGHT_CMD_SET_PARAM_DEFAULTS:    RF_.params_.set_defaults(); break;
+      case CommLinkInterface::CommMessageCommand::ROSFLIGHT_CMD_ACCEL_CALIBRATION:     result = RF_.sensors_.start_imu_calibration(); break;
+      case CommLinkInterface::CommMessageCommand::ROSFLIGHT_CMD_GYRO_CALIBRATION:      result = RF_.sensors_.start_gyro_calibration(); break;
+      case CommLinkInterface::CommMessageCommand::ROSFLIGHT_CMD_AIRSPEED_CALIBRATION:  result = RF_.sensors_.start_diff_pressure_calibration(); break;
+      case CommLinkInterface::CommMessageCommand::ROSFLIGHT_CMD_RC_CALIBRATION:        RF_.controller_.calculate_equilbrium_torque_from_rc(); break;
+      case CommLinkInterface::CommMessageCommand::ROSFLIGHT_CMD_REBOOT:                reboot_flag = true; break;
+      case CommLinkInterface::CommMessageCommand::ROSFLIGHT_CMD_REBOOT_TO_BOOTLOADER:  reboot_to_bootloader_flag = true; break;
+      case CommLinkInterface::CommMessageCommand::ROSFLIGHT_CMD_SEND_VERSION:          comm_link_.send_version(sysid_, GIT_VERSION_STRING); break;
+      // Unsupported commands. Report failure.
+      case CommLinkInterface::CommMessageCommand::ROSFLIGHT_CMD_RESET_ORIGIN:
+      case CommLinkInterface::CommMessageCommand::ROSFLIGHT_CMD_SEND_ALL_CONFIG_INFOS:
+      default:
+        result = false;
+        log(CommLinkInterface::LogSeverity::LOG_ERROR, "Unsupported CommLinkInterface::ROSFLIGHT CMD %d", message->rosflight_cmd_.command);
+    }
+  }
+  CommLinkInterface::RosflightCmdResponse response = ((uint8_t)result<(uint8_t)(CommLinkInterface::RosflightCmdResponse::END))? (CommLinkInterface::RosflightCmdResponse)result : CommLinkInterface::RosflightCmdResponse::END;
+  //CommLinkInterface::RosflightCmdResponse response = CommLinkInterface::cast_in_range(result,CommLinkInterface::RosflightCmdResponse);
+
+
+  comm_link_.send_command_ack(sysid_, message->rosflight_cmd_.command, response);
+
+
+
+  if (reboot_flag || reboot_to_bootloader_flag) {
+    RF_.board_.clock_delay(20);
+    RF_.board_.board_reset(reboot_to_bootloader_flag);
+  }
+  RF_.board_.serial_flush();
+}
+
+void CommManager::receive_msg_timesync(CommLinkInterface::CommMessage *message)
+{
+  uint64_t now_us = RF_.board_.clock_micros();
+
+  // Respond if this is a request local==0 vs. response local!=0
+  if (message->time_sync_.local == 0) {
+    comm_link_.send_timesync(sysid_, static_cast<int64_t>(now_us) * 1000, message->time_sync_.remote);
+  }
+}
+
+void CommManager::receive_msg_offboard_control(CommLinkInterface::CommMessage *message)
+{
+  // put values into a new command struct
+  control_t new_offboard_command;
+
+  switch (message->offboard_control_.mode) {
+    case CommLinkInterface::OffboardControlMode::MODE_PASS_THROUGH:
+      new_offboard_command.x.type = PASSTHROUGH;
+      new_offboard_command.y.type = PASSTHROUGH;
+      new_offboard_command.z.type = PASSTHROUGH;
+      new_offboard_command.F.type = THROTTLE;
+      break;
+    case CommLinkInterface::OffboardControlMode::MODE_ROLLRATE_PITCHRATE_YAWRATE_THROTTLE:
+      new_offboard_command.x.type = RATE;
+      new_offboard_command.y.type = RATE;
+      new_offboard_command.z.type = RATE;
+      new_offboard_command.F.type = THROTTLE;
+      break;
+    case CommLinkInterface::OffboardControlMode::MODE_ROLL_PITCH_YAWRATE_THROTTLE:
+      new_offboard_command.x.type = ANGLE;
+      new_offboard_command.y.type = ANGLE;
+      new_offboard_command.z.type = RATE;
+      new_offboard_command.F.type = THROTTLE;
+      break;
+    case CommLinkInterface::OffboardControlMode::MODE_ROLL_PITCH_YAWRATE_ALTITUDE:
+    case CommLinkInterface::OffboardControlMode::MODE_XVEL_YVEL_YAWRATE_ALTITUDE:
+    case CommLinkInterface::OffboardControlMode::MODE_XPOS_YPOS_YAW_ALTITUDE:
+    default:
+      // invalid mode; ignore message and return without calling callback
+      return;
+  }
+
+  new_offboard_command.x.value = message->offboard_control_.U[0].value;
+  new_offboard_command.y.value = message->offboard_control_.U[1].value;
+  new_offboard_command.z.value = message->offboard_control_.U[2].value;
+  new_offboard_command.F.value = message->offboard_control_.U[3].value;
+
+  new_offboard_command.x.active = !(message->offboard_control_.U[0].valid & 0x01);
+  new_offboard_command.y.active = !(message->offboard_control_.U[1].valid & 0x02);
+  new_offboard_command.z.active = !(message->offboard_control_.U[2].valid & 0x04);
+  new_offboard_command.F.active = !(message->offboard_control_.U[3].valid & 0x08);
+
+  // Tell the command_manager that we have a new command we need to mux
+  new_offboard_command.stamp_ms = RF_.board_.clock_millis();
+  RF_.command_manager_.set_new_offboard_command(new_offboard_command);
+}
+
+void CommManager::receive_msg_rosflight_aux_cmd(CommLinkInterface::CommMessage *message)
+{
+  RF_.mixer_.set_new_aux_command(message->new_aux_command_);
+}
+
+void CommManager::receive_msg_external_attitude(CommLinkInterface::CommMessage *message)
+{
+  turbomath::Quaternion q;
+  q.w = message->external_attitude_quaternion_.q[0];
+  q.x = message->external_attitude_quaternion_.q[1];
+  q.y = message->external_attitude_quaternion_.q[2];
+  q.z = message->external_attitude_quaternion_.q[3];
+
+  RF_.estimator_.set_external_attitude_update(q);
+}
+
+void CommManager::receive_msg_heartbeat(CommLinkInterface::CommMessage *message)
+{
+  connected_ = true;
+
+  if (have_backup_data_) {
+    comm_link_.send_error_data(sysid_, backup_data_buffer_);
+    have_backup_data_ = false;
+  }
+}
+
+}
+
+
+
+
+
+
+

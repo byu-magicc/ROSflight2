@@ -35,99 +35,195 @@
 #include "param.h"
 #include "sensors.h"
 #include "state_manager.h"
+#include "mixer.h"
 
 #include <turbomath/turbomath.h>
 
 #include <cstdint>
 
+//#include <rosflight_enums.h>
+
 namespace rosflight_firmware
 {
 class CommLinkInterface
 {
+#define cast_in_range(val,type) (val<(uint8_t)(type::END))?(type)val:type::END
+
 public:
   enum class LogSeverity
   {
-    LOG_INFO,
-    LOG_WARNING,
-    LOG_ERROR,
-    LOG_CRITICAL
+    LOG_INFO=0, // c.f., MAVlink MAV_SEVERITY_INFO=6,
+    LOG_WARNING, // c.f., MAVlink MAV_SEVERITY_WARNING=4,
+    LOG_ERROR, // c.f., MAVlink MAV_SEVERITY_ERROR=3,
+    LOG_CRITICAL, // c.f., MAVlink MAV_SEVERITY_CRITICAL=2,
+    END // c.f., MAVlink
   };
 
-  enum class Command
+  enum class CommMessageType
   {
-    COMMAND_READ_PARAMS,
-    COMMAND_WRITE_PARAMS,
-    COMMAND_SET_PARAM_DEFAULTS,
-    COMMAND_ACCEL_CALIBRATION,
-    COMMAND_GYRO_CALIBRATION,
-    COMMAND_BARO_CALIBRATION,
-    COMMAND_AIRSPEED_CALIBRATION,
-    COMMAND_RC_CALIBRATION,
-    COMMAND_REBOOT,
-    COMMAND_REBOOT_TO_BOOTLOADER,
-    COMMAND_SEND_VERSION
+    MESSAGE_OFFBOARD_CONTROL=0,
+    MESSAGE_PARAM_REQUEST_LIST,
+    MESSAGE_PARAM_REQUEST_READ,
+    MESSAGE_PARAM_SET,
+    MESSAGE_ROSFLIGHT_CMD,
+    MESSAGE_ROSFLIGHT_AUX_CMD,
+    MESSAGE_TIMESYNC,
+    MESSAGE_EXTERNAL_ATTITUDE,
+    MESSAGE_HEARTBEAT,
+    END
   };
 
-  struct OffboardControl
+  enum class CommMessageCommand // c.f., MAVlink ROSFLIGHT_CMD
   {
-    enum class Mode
+    ROSFLIGHT_CMD_RC_CALIBRATION=0, /*  | */
+    ROSFLIGHT_CMD_ACCEL_CALIBRATION=1, /*  | */
+    ROSFLIGHT_CMD_GYRO_CALIBRATION=2, /*  | */
+    ROSFLIGHT_CMD_BARO_CALIBRATION=3, /*  | */
+    ROSFLIGHT_CMD_AIRSPEED_CALIBRATION=4, /*  | */
+    ROSFLIGHT_CMD_READ_PARAMS=5, /*  | */
+    ROSFLIGHT_CMD_WRITE_PARAMS=6, /*  | */
+    ROSFLIGHT_CMD_SET_PARAM_DEFAULTS=7, /*  | */
+    ROSFLIGHT_CMD_REBOOT=8, /*  | */
+    ROSFLIGHT_CMD_REBOOT_TO_BOOTLOADER=9, /*  | */
+    ROSFLIGHT_CMD_SEND_VERSION=10, /*  | */
+    ROSFLIGHT_CMD_RESET_ORIGIN=11, /*  | */
+    ROSFLIGHT_CMD_SEND_ALL_CONFIG_INFOS=12, /*  | */
+    END=13, /*  | */
+   };
+
+  enum class RosflightAuxCmdType // c.f., MAVlink ROSFLIGHT_AUX_CMD_TYPE
+  {
+    DISABLED=0, /*  | */
+    SERVO=1, /*  | */
+    MOTOR=2, /*  | */
+    END=3
+  };
+
+  enum class RosflightCmdResponse // c.f., MAVlink ROSFLIGHT_CMD_RESPONSE
+  {
+    ROSFLIGHT_CMD_FAILED=0, /*  | */
+    ROSFLIGHT_CMD_SUCCESS=1, /*  | */
+    END=2
+  };
+
+  enum class OffboardControlMode // c.f., MAVlink OFFBOARD_CONTROL_MODE
+  {
+    MODE_PASS_THROUGH=0, /* Pass commanded values directly to actuators | */
+    MODE_ROLLRATE_PITCHRATE_YAWRATE_THROTTLE=1, /* Command roll rate, pitch rate, yaw rate, and throttle | */
+    MODE_ROLL_PITCH_YAWRATE_THROTTLE=2, /* Command roll angle, pitch angle, yaw rate, and throttle | */
+    MODE_ROLL_PITCH_YAWRATE_ALTITUDE=3, /* Command roll angle, pitch angle, yaw rate, and altitude above ground | */
+    MODE_XVEL_YVEL_YAWRATE_ALTITUDE=4, /* Command body-fixed, x and y velocity, and yaw rate, and altitude above ground | */
+    MODE_XPOS_YPOS_YAW_ALTITUDE=5, /* Command inertial x, y position (m) wrt origin, yaw angle wrt north, and altitude above ground | */
+    END=6, /*  | */
+  };
+
+ enum class OffboardControlIgnore // c.f., MAVlink OFFBOARD_CONTROL_IGNORE
+  {
+    IGNORE_NONE =0x00, /* Convenience value for specifying no fields should be ignored | */
+    IGNORE_VALUE1=0x01, /* Field value1 should be ignored | */
+    IGNORE_VALUE2=0x02, /* Field value2 should be ignored | */
+    IGNORE_VALUE3=0x04, /* Field value3 should be ignored | */
+    IGNORE_VALUE4=0x08, /* Field value4 should be ignored | */
+    IGNORE_VALUE5=0x10, /* Field value4 should be ignored | */
+    IGNORE_VALUE6=0x20, /* Field value4 should be ignored | */
+    END = 9
+  };
+
+// enum class RosflightErrorCode // c.f., ROSFLIGHT_ERROR_CODE
+// {
+//   ROSFLIGHT_ERROR_NONE=0, /*  | */
+//   ROSFLIGHT_ERROR_INVALID_MIXER=1, /*  | */
+//   ROSFLIGHT_ERROR_IMU_NOT_RESPONDING=2, /*  | */
+//   ROSFLIGHT_ERROR_RC_LOST=4, /*  | */
+//   ROSFLIGHT_ERROR_UNHEALTHY_ESTIMATOR=8, /*  | */
+//   ROSFLIGHT_ERROR_TIME_GOING_BACKWARDS=16, /*  | */
+//   ROSFLIGHT_ERROR_UNCALIBRATED_IMU=32, /*  | */
+//   ROSFLIGHT_ERROR_BUFFER_OVERRUN=64, /*  | */
+//   END=65, /*  | */
+// };
+
+  enum class RosFlightRangeType // c.f., ROSFLIGHT_RANGE_TYPE
+  {
+    ROSFLIGHT_RANGE_SONAR=0, /*  | */
+    ROSFLIGHT_RANGE_LIDAR=1, /*  | */
+    END=2, /*  | */
+  };
+
+//  enum class GnssFixType // c.f., MAVlink GNSS_FIX_TYPE
+//  {
+//    GNSS_FIX_NO_FIX=0, /*  | */
+//    GNSS_FIX_FIX=1, /*  | */
+//    GNSS_FIX_RTK_FLOAT=2, /*  | */
+//    GNSS_FIX_RTK_FIXED=3, /*  | */
+//    END=4, /*  | */
+//  };
+
+//  enum class UbloxFixType // c.f., UBLOX_FIX_TYPE
+//  {
+//    NO_FIX=0, /*  | */
+//    DEAD_RECKONING_ONLY=1, /*  | */
+//    FIX_2D=2, /*  | */
+//    FIX_3D=3, /*  | */
+//    GNSS_AND_DEAD_RECKONING=4, /*  | */
+//    TIME_ONLY=5, /*  | */
+//    END=6, /*  | */
+//  };
+
+  typedef struct
+  {
+    CommMessageType type;
+    union
     {
-      PASS_THROUGH,
-      ROLLRATE_PITCHRATE_YAWRATE_THROTTLE,
-      ROLL_PITCH_YAWRATE_THROTTLE
-    };
-
+      struct
+      {
+        OffboardControlMode mode;
     struct Channel
     {
       float value;
       bool valid;
     };
+        Channel U[6]; // allow for 3 moments and 3 forces.
+      } offboard_control_;
 
-    Mode mode;
-    Channel x;
-    Channel y;
-    Channel z;
-    Channel F;
-  };
+      struct
+      {
+        int16_t id; /*< Parameter index. Send -1 to use the param ID field as identifier (else the param id will be ignored)*/
+        char name[Params::PARAMS_NAME_LENGTH]; /*< Onboard parameter id, terminated by NULL if the length is less than 16 human-readable chars and WITHOUT null termination (NULL) byte if the length is exactly 16 chars - applications have to provide 16+1 bytes storage if the ID is stored as string*/
+      } param_read_;
 
-  struct AuxCommand
+      struct
   {
-    enum class Type
+        param_value_t value;
+        char name[Params::PARAMS_NAME_LENGTH];
+        param_type_t type;
+      } param_set_;
+
+      struct
     {
-      DISABLED,
-      SERVO,
-      MOTOR
-    };
+        float q[4]; // w,x,y,z
+      } external_attitude_quaternion_;
 
-    struct AuxChannel
+      struct //
     {
-      Type type;
-      float value;
-    };
+        CommMessageCommand command;
+        uint8_t success;
+      } rosflight_cmd_;
 
-    AuxChannel cmd_array[14];
-  };
+      Mixer::aux_command_t new_aux_command_;
 
-  class ListenerInterface
+      struct
   {
-  public:
-    virtual void param_request_list_callback(uint8_t target_system) = 0;
-    virtual void param_request_read_callback(uint8_t target_system, const char * const param_name,
-                                             int16_t param_index) = 0;
-    virtual void param_set_int_callback(uint8_t target_system, const char * const param_name,
-                                        int32_t param_value) = 0;
-    virtual void param_set_float_callback(uint8_t target_system, const char * const param_name,
-                                          float param_value) = 0;
-    virtual void command_callback(Command command) = 0;
-    virtual void timesync_callback(int64_t tc1, int64_t ts1) = 0;
-    virtual void offboard_control_callback(const OffboardControl & control) = 0;
-    virtual void aux_command_callback(const AuxCommand & command) = 0;
-    virtual void external_attitude_callback(const turbomath::Quaternion & q) = 0;
-    virtual void heartbeat_callback() = 0;
+        uint64_t local;
+        uint64_t remote;
+      } time_sync_;
   };
+  } CommMessage;
 
   virtual void init(uint32_t baud_rate, uint32_t dev) = 0;
-  virtual void receive() = 0;
+
+  // receive function
+
+  virtual bool parse_char(uint8_t ch, CommMessage *message)=0;
 
   // send functions
 
@@ -135,7 +231,7 @@ public:
                                         const turbomath::Quaternion & attitude,
                                         const turbomath::Vector & angular_velocity) = 0;
   virtual void send_baro(uint8_t system_id, float altitude, float pressure, float temperature) = 0;
-  virtual void send_command_ack(uint8_t system_id, Command command, bool success) = 0;
+  virtual void send_command_ack(uint8_t system_id, CommMessageCommand command, RosflightCmdResponse success) = 0;
   virtual void send_diff_pressure(uint8_t system_id, float velocity, float pressure,
                                   float temperature) = 0;
   virtual void send_heartbeat(uint8_t system_id, bool fixed_wing) = 0;
@@ -167,9 +263,6 @@ public:
   virtual void send_gnss_full(uint8_t system_id, const GNSSFull & data) = 0;
   virtual void send_error_data(uint8_t system_id, const StateManager::BackupData & error_data) = 0;
   virtual void send_battery_status(uint8_t system_id, float voltage, float current) = 0;
-
-  // register listener
-  virtual void set_listener(ListenerInterface * listener) = 0;
 };
 
 } // namespace rosflight_firmware

@@ -55,13 +55,14 @@ class Mavlink : public CommLinkInterface
 public:
   Mavlink(Board & board);
   void init(uint32_t baud_rate, uint32_t dev) override;
-  void receive() override;
+
+  bool parse_char(uint8_t ch, CommMessage *message) override;
 
   void send_attitude_quaternion(uint8_t system_id, uint64_t timestamp_us,
                                 const turbomath::Quaternion & attitude,
                                 const turbomath::Vector & angular_velocity) override;
   void send_baro(uint8_t system_id, float altitude, float pressure, float temperature) override;
-  void send_command_ack(uint8_t system_id, Command command, bool success) override;
+  void send_command_ack(uint8_t system_id, CommMessageCommand command, RosflightCmdResponse success) override;
   void send_diff_pressure(uint8_t system_id, float velocity, float pressure,
                           float temperature) override;
   void send_heartbeat(uint8_t system_id, bool fixed_wing) override;
@@ -93,21 +94,20 @@ public:
   void send_error_data(uint8_t system_id, const StateManager::BackupData & error_data) override;
   void send_battery_status(uint8_t system_id, float voltage, float current) override;
 
-  inline void set_listener(ListenerInterface * listener) override { listener_ = listener; }
-
 private:
+
   void send_message(const mavlink_message_t & msg, uint8_t qos = UINT8_MAX);
 
-  void handle_msg_param_request_list(const mavlink_message_t * const msg);
-  void handle_msg_param_request_read(const mavlink_message_t * const msg);
-  void handle_msg_param_set(const mavlink_message_t * const msg);
-  void handle_msg_offboard_control(const mavlink_message_t * const msg);
-  void handle_msg_external_attitude(const mavlink_message_t * const msg);
-  void handle_msg_rosflight_cmd(const mavlink_message_t * const msg);
-  void handle_msg_rosflight_aux_cmd(const mavlink_message_t * const msg);
-  void handle_msg_timesync(const mavlink_message_t * const msg);
-  void handle_msg_heartbeat(const mavlink_message_t * const msg);
-  void handle_mavlink_message();
+  void handle_msg_param_request_list(const mavlink_message_t * const msg, CommMessage *message);
+  void handle_msg_param_request_read(const mavlink_message_t * const msg, CommMessage *message);
+  void handle_msg_param_set(const mavlink_message_t * const msg, CommMessage *message);
+  void handle_msg_offboard_control(const mavlink_message_t * const msg, CommMessage *message);
+  void handle_msg_external_attitude(const mavlink_message_t * const msg, CommMessage *message);
+  void handle_msg_rosflight_cmd(const mavlink_message_t * const msg, CommMessage *message);
+  void handle_msg_rosflight_aux_cmd(const mavlink_message_t * const msg, CommMessage *message);
+  void handle_msg_timesync(const mavlink_message_t * const msg, CommMessage *message);
+  void handle_msg_heartbeat(const mavlink_message_t * const msg, CommMessage *message);
+  bool handle_mavlink_message(const mavlink_message_t * const msg, CommMessage *message);
 
   Board & board_;
 
@@ -115,8 +115,6 @@ private:
   mavlink_message_t in_buf_;
   mavlink_status_t status_;
   bool initialized_ = false;
-
-  ListenerInterface * listener_ = nullptr;
 };
 
 } // namespace rosflight_firmware

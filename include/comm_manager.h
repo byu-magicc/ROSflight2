@@ -45,7 +45,7 @@ namespace rosflight_firmware
 {
 class ROSflight;
 
-class CommManager : public CommLinkInterface::ListenerInterface, public ParamListenerInterface
+class CommManager :  public ParamListenerInterface
 {
 private:
   enum StreamId
@@ -131,19 +131,21 @@ private:
 
   void update_system_id(uint16_t param_id);
 
-  void param_request_list_callback(uint8_t target_system) override;
-  void param_request_read_callback(uint8_t target_system, const char * const param_name,
-                                   int16_t param_index) override;
-  void param_set_int_callback(uint8_t target_system, const char * const param_name,
-                              int32_t param_value) override;
-  void param_set_float_callback(uint8_t target_system, const char * const param_name,
-                                float param_value) override;
-  void command_callback(CommLinkInterface::Command command) override;
-  void timesync_callback(int64_t tc1, int64_t ts1) override;
-  void offboard_control_callback(const CommLinkInterface::OffboardControl & control) override;
-  void aux_command_callback(const CommLinkInterface::AuxCommand & command) override;
-  void external_attitude_callback(const turbomath::Quaternion & q) override;
-  void heartbeat_callback() override;
+  // The following are CommLinkInterface Listener Functions
+  //
+  //void param_request_list_callback(uint8_t target_system) override;
+//  void param_request_read_callback(uint8_t target_system, const char * const param_name,
+//                                   int16_t param_index) override;
+//  void param_set_int_callback(uint8_t target_system, const char * const param_name,
+//                              int32_t param_value) override;
+//  void param_set_float_callback(uint8_t target_system, const char * const param_name,
+//                                float param_value) override;
+//  void command_callback(CommLinkInterface::Command command) override;
+  //void timesync_callback(int64_t tc1, int64_t ts1) override;
+  //void offboard_control_callback(const CommLinkInterface::OffboardControl & control) override;
+  //void aux_command_callback(const CommLinkInterface::AuxCommand & command) override;
+  //void external_attitude_callback(const turbomath::Quaternion & q) override;
+  //void heartbeat_callback() override;
 
   void send_heartbeat(void);
   void send_status(void);
@@ -159,11 +161,19 @@ private:
   void send_gnss(void);
   void send_gnss_full(void);
   void send_low_priority(void);
-
-  // Debugging Utils
+  void send_rosflignt_cmd_ack(void);
   void send_named_value_int(const char * const name, int32_t value);
-
   void send_next_param(void);
+
+  void receive_msg_offboard_control(CommLinkInterface::CommMessage *message);
+  void receive_msg_param_request_list(CommLinkInterface::CommMessage *message);
+  void receive_msg_param_request_read(CommLinkInterface::CommMessage *message);
+  void receive_msg_param_set(CommLinkInterface::CommMessage *message);
+  void receive_msg_rosflight_cmd(CommLinkInterface::CommMessage *message);
+  void receive_msg_rosflight_aux_cmd(CommLinkInterface::CommMessage *message);
+  void receive_msg_timesync(CommLinkInterface::CommMessage *message);
+  void receive_msg_external_attitude(CommLinkInterface::CommMessage *message);
+  void receive_msg_heartbeat(CommLinkInterface::CommMessage *message);
 
   // the time of week stamp for the last sent GNSS message, to prevent re-sending
   uint32_t last_sent_gnss_tow_ = 0;

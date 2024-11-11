@@ -47,7 +47,6 @@ ROSflight::ROSflight(Board & board, CommLinkInterface & comm_link)
     , sensors_(*this)
     , state_manager_(*this)
 {
-  comm_link.set_listener(&comm_manager_);
   params_.set_listeners(param_listeners_, num_param_listeners_);
 }
 
