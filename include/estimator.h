@@ -46,7 +46,15 @@ class ROSflight;
 
 class Estimator : public ParamListenerInterface
 {
+
 public:
+  typedef struct //__attribute__((__packed__))
+  {
+    uint64_t timestamp; // us, time of data read complete
+    float q[4];         // quaternions
+    float rate[3];
+  } AttitudeStruct;
+
   struct State
   {
     turbomath::Vector angular_velocity;
@@ -74,7 +82,10 @@ public:
   void reset_adaptive_bias();
   void set_external_attitude_update(const turbomath::Quaternion & q);
 
+  AttitudeStruct * get_attitude(void) { return &attitude_; }
+
 private:
+  AttitudeStruct attitude_;
   const turbomath::Vector g_ = {0.0f, 0.0f, -1.0f};
 
   ROSflight & RF_;

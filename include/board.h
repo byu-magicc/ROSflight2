@@ -32,12 +32,13 @@
 #ifndef ROSFLIGHT_FIRMWARE_BOARD_H
 #define ROSFLIGHT_FIRMWARE_BOARD_H
 
-#include "sensors.h"
 #include "state_manager.h"
 
 #include <cstdbool>
 #include <cstddef>
 #include <cstdint>
+
+#include <sensors.h>
 
 namespace rosflight_firmware
 {
@@ -57,9 +58,9 @@ public:
   virtual void sensors_init(void) = 0;
   virtual uint16_t sensors_errors_count() = 0;
 
-  virtual uint16_t sensors_init_message_count() =  0;
+  virtual uint16_t sensors_init_message_count() = 0;
   virtual bool sensors_init_message_good(uint16_t i) = 0;
-  virtual uint16_t sensors_init_message(char *message, uint16_t size, uint16_t i) = 0;
+  virtual uint16_t sensors_init_message(char * message, uint16_t size, uint16_t i) = 0;
 
   // clock
   virtual uint32_t clock_millis() = 0;
@@ -75,55 +76,39 @@ public:
   virtual void serial_flush() = 0;
 
   // IMU
-  virtual bool imu_present() = 0;
-  virtual bool imu_has_new_data() = 0;
-  virtual bool imu_read(float accel[3], float * temperature, float gyro[3], uint64_t * time) = 0;
+  virtual bool imu_read(rosflight_firmware::ImuStruct * imu) = 0;
   virtual void imu_not_responding_error() = 0;
 
   // Mag
-  virtual bool mag_present() = 0;
-  virtual bool mag_has_new_data() = 0;
-  virtual bool mag_read(float mag[3]) = 0;
+  virtual bool mag_read(rosflight_firmware::MagStruct * mag) = 0;
 
   // Baro
-  virtual bool baro_present() = 0;
-  virtual bool baro_has_new_data() = 0;
-  virtual bool baro_read(float * pressure, float * temperature) = 0;
+  virtual bool baro_read(PressureStruct * diff_pressure) = 0;
 
   // Pitot
-  virtual bool diff_pressure_present() = 0;
-  virtual bool diff_pressure_has_new_data() = 0;
-  virtual bool diff_pressure_read(float * diff_pressure, float * temperature) = 0;
+  virtual bool diff_pressure_read(PressureStruct * diff_pressure) = 0;
 
   // Sonar
-  virtual bool sonar_present() = 0;
-  virtual bool sonar_has_new_data() = 0;
-  virtual bool sonar_read(float * range) = 0;
+  virtual bool sonar_read(RangeStruct * sonar) = 0;
 
   // GPS
-  virtual bool gnss_present() = 0;
-  virtual bool gnss_has_new_data() = 0;
-  virtual bool gnss_read(GNSSData * gnss, GNSSFull * gnss_full) = 0;
-
+  virtual bool gnss_read(rosflight_firmware::GnssStruct * gnss) = 0;
   // Battery
-  virtual bool battery_present() = 0;
-  virtual bool battery_has_new_data() = 0;
-  virtual bool battery_read(float * voltage, float * current) = 0;
+  virtual bool battery_read(rosflight_firmware::BatteryStruct * bat) = 0;
   virtual void battery_voltage_set_multiplier(double multiplier) = 0;
   virtual void battery_current_set_multiplier(double multiplier) = 0;
 
   // RC
   virtual void rc_init(rc_type_t rc_type) = 0;
   virtual bool rc_lost() = 0;
-  virtual bool rc_has_new_data() = 0;
-  virtual float rc_read(uint8_t chan) = 0;
+  //virtual bool rc_has_new_data() = 0;
+  //virtual float rc_read(uint8_t chan) = 0;
+  virtual bool rc_read(rosflight_firmware::RcStruct * rc) = 0;
 
   // PWM
-  virtual void pwm_init(uint32_t refresh_rate, uint16_t idle_pwm) = 0;
-  virtual void pwm_init_multi(const float * rate, uint32_t channels) = 0;
+  virtual void pwm_init(const float * rate, uint32_t channels) = 0;
   virtual void pwm_disable() = 0;
-  virtual void pwm_write(uint8_t channel, float value) = 0;
-  virtual void pwm_write_multi(float * value, uint32_t channels) = 0;
+  virtual void pwm_write(float * value, uint32_t channels) = 0;
 
   // non-volatile memory
   virtual void memory_init() = 0;

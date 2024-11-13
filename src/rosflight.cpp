@@ -102,36 +102,38 @@ void ROSflight::init()
  */
 void ROSflight::run()
 {
-  /*********************/
-  /***  Control Loop ***/
-  /*********************/
-  uint64_t start = board_.clock_micros();
+  /**********************/
+  /***  Control Loop  ***/
+  /**********************/
 
-  got_flags got = sensors_.run(); // IMU, GNSS, Baro, Mag, Pitot, SONAR, Battery
+  got_flags got = sensors_.run(); // IMU, GNSS, Baro, Mag, Pitot, Sonar, Battery
 
   if (got.imu) {
-    estimator_.run();
-    controller_.run();
-    mixer_.mix_output();
-    loop_time_us = board_.clock_micros() - start;
+    uint64_t start = board_.clock_micros(); // time the control loop
+    estimator_.run();                       // imu -> state
+    controller_.run();                      // state -> control values
+    mixer_.mix_output();                    // control values -> mixer outputs
+    board_.pwm_write(mixer_.raw_outputs(), Mixer::NUM_TOTAL_OUTPUTS); // mixer outputs -> hardware
+    loop_time_us = board_.clock_micros() - start; // Status message, not used internally
   }
 
-  /*********************/
-  /***  Post-Process ***/
-  /*********************/
-  // internal timers figure out what and when to send
-  comm_manager_.stream(got);
+  /**************************/
+  /***  Background Tasks  ***/
+  /**************************/
 
-  // receive mavlink messages
+  // internal timers figure out what and when to send
+  comm_manager_.transmit(got);
+
+  // receive mavlink messages (Note, receive also transmits response data as needed)
   comm_manager_.receive();
 
-  // update the state machine, an internal timer runs this at a fixed rate
+  // update the state machine
   state_manager_.run();
 
-  // get RC, synchronous with rc data acquisition
+  // Process latest received RC input data
   if (got.rc) { rc_.run(); }
 
-  // update commands (internal logic tells whether or not we should do anything or not)
+  // Update commands (internal logic tells whether or not we should do anything or not)
   command_manager_.run();
 }
 

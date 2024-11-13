@@ -56,17 +56,11 @@ Sensors::Sensors(ROSflight & rosflight)
 
 void Sensors::init()
 {
-  new_imu_data_ = false;
-
   // clear the IMU read error
   rf_.state_manager_.clear_error(StateManager::ERROR_IMU_NOT_RESPONDING);
   rf_.board_.sensors_init();
 
   init_imu();
-
-  next_sensor_to_update_ = BAROMETER;
-
-  int_start_us_ = rf_.board_.clock_micros();
 
   this->update_battery_monitor_multipliers();
 }
@@ -77,7 +71,7 @@ void Sensors::init_imu()
   float roll = rf_.params_.get_param_float(PARAM_FC_ROLL) * 0.017453293;
   float pitch = rf_.params_.get_param_float(PARAM_FC_PITCH) * 0.017453293;
   float yaw = rf_.params_.get_param_float(PARAM_FC_YAW) * 0.017453293;
-  data_.fcu_orientation = turbomath::Quaternion(roll, pitch, yaw);
+  fcu_orientation_ = turbomath::Quaternion(roll, pitch, yaw);
 
   // See if the IMU is uncalibrated, and throw an error if it is
   if (rf_.params_.get_param_float(PARAM_ACC_X_BIAS) == 0.0
@@ -114,118 +108,72 @@ void Sensors::param_change_callback(uint16_t param_id)
   }
 }
 
+// This could be written out instead of using turbomath.
+void Sensors::rotate_imu_in_place(ImuStruct * imu, turbomath::Quaternion rotation)
+{
+  turbomath::Vector accel;
+  accel.x = imu->accel[0];
+  accel.y = imu->accel[1];
+  accel.z = imu->accel[2];
+
+  accel = rotation * accel;
+
+  imu->accel[0] = accel.x;
+  imu->accel[1] = accel.y;
+  imu->accel[2] = accel.z;
+
+  turbomath::Vector gyro;
+  gyro.x = imu->gyro[0];
+  gyro.y = imu->gyro[1];
+  gyro.z = imu->gyro[2];
+
+  gyro = rotation * gyro;
+
+  imu->gyro[0] = gyro.x;
+  imu->gyro[1] = gyro.y;
+  imu->gyro[2] = gyro.z;
+}
+
 got_flags Sensors::run()
 {
-  memset(&got, 0, sizeof(got));
+  got_flags got = {};
 
   // IMU:
-  if (rf_.board_.imu_has_new_data()) {
-    got.imu = true;
+  if ((got.imu = rf_.board_.imu_read(&imu_))) {
     rf_.state_manager_.clear_error(StateManager::ERROR_IMU_NOT_RESPONDING);
-    last_imu_update_ms_ = rf_.board_.clock_millis();
-
-    if (!rf_.board_.imu_read(accel_, &data_.imu_temperature, gyro_, &data_.imu_time)) {
-      got.imu = false;
-    }
-
-    // Move data into local copy
-    data_.accel.x = accel_[0];
-    data_.accel.y = accel_[1];
-    data_.accel.z = accel_[2];
-
-    data_.accel = data_.fcu_orientation * data_.accel;
-
-    data_.gyro.x = gyro_[0];
-    data_.gyro.y = gyro_[1];
-    data_.gyro.z = gyro_[2];
-
-    data_.gyro = data_.fcu_orientation * data_.gyro;
+    rotate_imu_in_place(&imu_, fcu_orientation_);
 
     if (calibrating_acc_flag_) { calibrate_accel(); }
     if (calibrating_gyro_flag_) { calibrate_gyro(); }
 
-    // Apply bias correction
     correct_imu();
-
-    // Integrate for filtered IMU
-    float dt = (data_.imu_time - prev_imu_read_time_us_) * 1e-6;
-    accel_int_ += dt * data_.accel;
-    gyro_int_ += dt * data_.gyro;
-    prev_imu_read_time_us_ = data_.imu_time;
   }
 
   // GNSS:
-  if (rf_.board_.gnss_present()) {
-    data_.gnss_present = true;
-    if (rf_.board_.gnss_has_new_data()) {
-      got.gnss = true;
-      rf_.board_.gnss_read(&this->data_.gnss_data, &this->data_.gnss_full);
-    }
-    got.gnss_full = got.gnss; // bot come with the pvt GPS data
-  }
+  got.gnss = rf_.board_.gnss_read(&gnss_);
 
   // BAROMETER:
-  if (rf_.board_.baro_present()) {
-    data_.baro_present = true;
-    if (rf_.board_.baro_has_new_data()) {
-      got.baro = true;
-      rf_.board_.baro_read(&data_.baro_pressure, &data_.baro_temperature);
-      correct_baro();
-    }
-  }
+  if ((got.baro = rf_.board_.baro_read(&baro_))) { correct_baro(); }
 
   // MAGNETOMETER:
-  if (rf_.board_.mag_present()) {
-    data_.mag_present = true;
-    float mag[3];
-    if (rf_.board_.mag_has_new_data()) {
-      got.mag = true;
-      rf_.board_.mag_read(mag);
-      data_.mag.x = mag[0];
-      data_.mag.y = mag[1];
-      data_.mag.z = mag[2];
-      correct_mag();
-    }
-  }
+  if ((got.mag = rf_.board_.mag_read(&mag_))) { correct_mag(); }
 
   // DIFF_PRESSURE:
-  if (rf_.board_.diff_pressure_present()) {
-    data_.diff_pressure_present = true;
-    if (rf_.board_.diff_pressure_has_new_data()) {
-      got.diff_pressure = true;
-      rf_.board_.diff_pressure_read(&data_.diff_pressure, &data_.diff_pressure_temp);
-      correct_diff_pressure();
-    }
+  if ((got.diff_pressure = rf_.board_.diff_pressure_read(&diff_pressure_))) {
+    correct_diff_pressure();
   }
 
   // SONAR:
-  if (rf_.board_.sonar_present()) {
-    data_.sonar_present = true;
-    if (rf_.board_.sonar_has_new_data()) {
-      got.sonar = true;
-      rf_.board_.sonar_read(&data_.sonar_range);
-    }
-  }
+  got.sonar = rf_.board_.sonar_read(&sonar_);
 
   // BATTERY_MONITOR:
-  if (rf_.board_.battery_has_new_data()) {
-    got.battery = true;
-    last_battery_monitor_update_ms_ = rf_.board_.clock_millis();
-    update_battery_monitor();
-  }
+  got.battery = rf_.board_.battery_read(&battery_);
 
   // RC
-  if (rf_.board_.rc_has_new_data()) {
-    got.rc = true;
-    rf_.board_.rc_read(0);
-  }
+  got.rc = rf_.board_.rc_read(&rc_);
 
   return got;
 }
-
-void Sensors::update_other_sensors() {}
-
-void Sensors::look_for_disabled_sensors() {}
 
 bool Sensors::start_imu_calibration(void)
 {
@@ -269,74 +217,15 @@ bool Sensors::start_diff_pressure_calibration()
 
 bool Sensors::gyro_calibration_complete(void) { return !calibrating_gyro_flag_; }
 
-//==================================================================
-// local function definitions
-bool Sensors::update_imu(void)
-{
-  bool new_data;
-  if ((new_data = rf_.board_.imu_has_new_data()) > 0) {
-    rf_.state_manager_.clear_error(StateManager::ERROR_IMU_NOT_RESPONDING);
-    last_imu_update_ms_ = rf_.board_.clock_millis();
-    if (!rf_.board_.imu_read(accel_, &data_.imu_temperature, gyro_, &data_.imu_time)) {
-      return false;
-    }
-
-    // Move data into local copy
-    data_.accel.x = accel_[0];
-    data_.accel.y = accel_[1];
-    data_.accel.z = accel_[2];
-
-    data_.accel = data_.fcu_orientation * data_.accel;
-
-    data_.gyro.x = gyro_[0];
-    data_.gyro.y = gyro_[1];
-    data_.gyro.z = gyro_[2];
-
-    data_.gyro = data_.fcu_orientation * data_.gyro;
-
-    if (calibrating_acc_flag_) { calibrate_accel(); }
-    if (calibrating_gyro_flag_) { calibrate_gyro(); }
-
-    // Apply bias correction
-    correct_imu();
-
-    // Integrate for filtered IMU
-    float dt = (data_.imu_time - prev_imu_read_time_us_) * 1e-6;
-    accel_int_ += dt * data_.accel;
-    gyro_int_ += dt * data_.gyro;
-    prev_imu_read_time_us_ = data_.imu_time;
-  }
-  return new_data;
-}
-
-void Sensors::get_filtered_IMU(turbomath::Vector & accel, turbomath::Vector & gyro,
-                               uint64_t & stamp_us)
-{
-  float delta_t = (data_.imu_time - int_start_us_) * 1e-6;
-  accel = accel_int_ / delta_t;
-  gyro = gyro_int_ / delta_t;
-  accel_int_ *= 0.0;
-  gyro_int_ *= 0.0;
-  int_start_us_ = data_.imu_time;
-  stamp_us = data_.imu_time;
-}
-
-void Sensors::update_battery_monitor()
-{
-  if (rf_.board_.battery_present()) {
-    float battery_voltage, battery_current;
-    rf_.board_.battery_read(&battery_voltage, &battery_current);
-    data_.battery_monitor_present = true;
-    data_.battery_voltage = battery_voltage;
-    data_.battery_current = battery_current;
-  }
-}
-
 //======================================================================
 // Calibration Functions
+
 void Sensors::calibrate_gyro()
 {
-  gyro_sum_ += data_.gyro;
+  gyro_sum_.x += imu_.gyro[0];
+  gyro_sum_.y += imu_.gyro[1];
+  gyro_sum_.z += imu_.gyro[2];
+
   gyro_calibration_count_++;
 
   if (gyro_calibration_count_ > 1000) {
@@ -381,10 +270,24 @@ turbomath::Vector vector_min(turbomath::Vector a, turbomath::Vector b)
 
 void Sensors::calibrate_accel(void)
 {
-  acc_sum_ = acc_sum_ + data_.accel + gravity_;
-  acc_temp_sum_ += data_.imu_temperature;
-  max_ = vector_max(max_, data_.accel);
-  min_ = vector_min(min_, data_.accel);
+  //acc_sum_ = acc_sum_ + data_.accel + gravity_;
+  acc_sum_.x += imu_.accel[0] + gravity_.x;
+  acc_sum_.y += imu_.accel[1] + gravity_.y;
+  acc_sum_.z += imu_.accel[2] + gravity_.z;
+
+  acc_temp_sum_ += imu_.temperature;
+
+  //  max_ = vector_max(max_, data_.accel);
+  //  min_ = vector_min(min_, data_.accel);
+
+  max_.x = max_.x > imu_.accel[0] ? max_.x : imu_.accel[0];
+  max_.y = max_.y > imu_.accel[1] ? max_.y : imu_.accel[1];
+  max_.z = max_.z > imu_.accel[2] ? max_.z : imu_.accel[2];
+
+  min_.x = min_.x < imu_.accel[0] ? min_.x : imu_.accel[0];
+  min_.y = min_.y < imu_.accel[1] ? min_.y : imu_.accel[1];
+  min_.z = min_.z < imu_.accel[2] ? min_.z : imu_.accel[2];
+
   accel_calibration_count_++;
 
   if (accel_calibration_count_ > 1000) {
@@ -460,9 +363,11 @@ void Sensors::calibrate_baro()
       if (baro_calibration_var_ < BARO_MAX_CALIBRATION_VARIANCE) {
         rf_.params_.set_param_float(PARAM_BARO_BIAS, baro_calibration_mean_);
         // set ground altitude to be pressure altitude at PARAM_BARO_BIAS
-        rf_.params_.set_param_float(PARAM_GROUND_LEVEL,turbomath::alt(rf_.params_.get_param_float(PARAM_BARO_BIAS)));
+        rf_.params_.set_param_float(PARAM_GROUND_LEVEL,
+                                    turbomath::alt(rf_.params_.get_param_float(PARAM_BARO_BIAS)));
         baro_calibrated_ = true;
-        rf_.comm_manager_.log(CommLinkInterface::LogSeverity::LOG_INFO, "Baro ground pressure cal successful!");
+        rf_.comm_manager_.log(CommLinkInterface::LogSeverity::LOG_INFO,
+                              "Baro ground pressure cal successful!");
       } else {
         rf_.comm_manager_.log(CommLinkInterface::LogSeverity::LOG_ERROR,
                               "Too much movement for barometer ground pressure cal");
@@ -471,7 +376,7 @@ void Sensors::calibrate_baro()
       baro_calibration_var_ = 0.0f;
       baro_calibration_count_ = 0;
     } else if (baro_calibration_count_ > SENSOR_CAL_DELAY_CYCLES) {
-      float measurement = data_.baro_pressure;
+      float measurement = baro_.pressure;
       float delta = measurement - baro_calibration_mean_;
       baro_calibration_mean_ += delta / (baro_calibration_count_ - SENSOR_CAL_DELAY_CYCLES);
       float delta2 = measurement - baro_calibration_mean_;
@@ -501,10 +406,10 @@ void Sensors::calibrate_diff_pressure()
       diff_pressure_calibration_var_ = 0.0f;
       diff_pressure_calibration_count_ = 0;
     } else if (diff_pressure_calibration_count_ > SENSOR_CAL_DELAY_CYCLES) {
-      float delta = data_.diff_pressure - diff_pressure_calibration_mean_;
+      float delta = diff_pressure_.pressure - diff_pressure_calibration_mean_;
       diff_pressure_calibration_mean_ +=
         delta / (diff_pressure_calibration_count_ - SENSOR_CAL_DELAY_CYCLES);
-      float delta2 = data_.diff_pressure - diff_pressure_calibration_mean_;
+      float delta2 = diff_pressure_.pressure - diff_pressure_calibration_mean_;
       diff_pressure_calibration_var_ += delta * delta2 / (SENSOR_CAL_CYCLES - 1);
     }
     last_diff_pressure_cal_iter_ms_ = rf_.board_.clock_millis();
@@ -516,33 +421,33 @@ void Sensors::calibrate_diff_pressure()
 void Sensors::correct_imu(void)
 {
   // correct according to known biases and temperature compensation
-  data_.accel.x -= rf_.params_.get_param_float(PARAM_ACC_X_TEMP_COMP) * data_.imu_temperature
+  imu_.accel[0] -= rf_.params_.get_param_float(PARAM_ACC_X_TEMP_COMP) * imu_.temperature
     + rf_.params_.get_param_float(PARAM_ACC_X_BIAS);
-  data_.accel.y -= rf_.params_.get_param_float(PARAM_ACC_Y_TEMP_COMP) * data_.imu_temperature
+  imu_.accel[1] -= rf_.params_.get_param_float(PARAM_ACC_Y_TEMP_COMP) * imu_.temperature
     + rf_.params_.get_param_float(PARAM_ACC_Y_BIAS);
-  data_.accel.z -= rf_.params_.get_param_float(PARAM_ACC_Z_TEMP_COMP) * data_.imu_temperature
+  imu_.accel[2] -= rf_.params_.get_param_float(PARAM_ACC_Z_TEMP_COMP) * imu_.temperature
     + rf_.params_.get_param_float(PARAM_ACC_Z_BIAS);
 
-  data_.gyro.x -= rf_.params_.get_param_float(PARAM_GYRO_X_BIAS);
-  data_.gyro.y -= rf_.params_.get_param_float(PARAM_GYRO_Y_BIAS);
-  data_.gyro.z -= rf_.params_.get_param_float(PARAM_GYRO_Z_BIAS);
+  imu_.gyro[0] -= rf_.params_.get_param_float(PARAM_GYRO_X_BIAS);
+  imu_.gyro[1] -= rf_.params_.get_param_float(PARAM_GYRO_Y_BIAS);
+  imu_.gyro[2] -= rf_.params_.get_param_float(PARAM_GYRO_Z_BIAS);
 }
 
 void Sensors::correct_mag(void)
 {
   // correct according to known hard iron bias
-  float mag_hard_x = data_.mag.x - rf_.params_.get_param_float(PARAM_MAG_X_BIAS);
-  float mag_hard_y = data_.mag.y - rf_.params_.get_param_float(PARAM_MAG_Y_BIAS);
-  float mag_hard_z = data_.mag.z - rf_.params_.get_param_float(PARAM_MAG_Z_BIAS);
+  float mag_hard_x = mag_.flux[0] - rf_.params_.get_param_float(PARAM_MAG_X_BIAS);
+  float mag_hard_y = mag_.flux[1] - rf_.params_.get_param_float(PARAM_MAG_Y_BIAS);
+  float mag_hard_z = mag_.flux[2] - rf_.params_.get_param_float(PARAM_MAG_Z_BIAS);
 
   // correct according to known soft iron bias - converts to nT
-  data_.mag.x = rf_.params_.get_param_float(PARAM_MAG_A11_COMP) * mag_hard_x
+  mag_.flux[0] = rf_.params_.get_param_float(PARAM_MAG_A11_COMP) * mag_hard_x
     + rf_.params_.get_param_float(PARAM_MAG_A12_COMP) * mag_hard_y
     + rf_.params_.get_param_float(PARAM_MAG_A13_COMP) * mag_hard_z;
-  data_.mag.y = rf_.params_.get_param_float(PARAM_MAG_A21_COMP) * mag_hard_x
+  mag_.flux[1] = rf_.params_.get_param_float(PARAM_MAG_A21_COMP) * mag_hard_x
     + rf_.params_.get_param_float(PARAM_MAG_A22_COMP) * mag_hard_y
     + rf_.params_.get_param_float(PARAM_MAG_A23_COMP) * mag_hard_z;
-  data_.mag.z = rf_.params_.get_param_float(PARAM_MAG_A31_COMP) * mag_hard_x
+  mag_.flux[2] = rf_.params_.get_param_float(PARAM_MAG_A31_COMP) * mag_hard_x
     + rf_.params_.get_param_float(PARAM_MAG_A32_COMP) * mag_hard_y
     + rf_.params_.get_param_float(PARAM_MAG_A33_COMP) * mag_hard_z;
 }
@@ -550,17 +455,15 @@ void Sensors::correct_mag(void)
 void Sensors::correct_baro(void)
 {
   if (!baro_calibrated_) { calibrate_baro(); }
-  data_.baro_altitude = turbomath::alt(data_.baro_pressure);
+  baro_.altitude = turbomath::alt(baro_.pressure);
 }
 
 void Sensors::correct_diff_pressure()
 {
   if (!diff_pressure_calibrated_) { calibrate_diff_pressure(); }
-  data_.diff_pressure -= rf_.params_.get_param_float(PARAM_DIFF_PRESS_BIAS);
-
-  // compute indicated air speed
-  data_.diff_pressure_ias = turbomath::fsign(data_.diff_pressure)
-    * sqrt((fabs(data_.diff_pressure)/(0.5*1.225)));
+  diff_pressure_.pressure -= rf_.params_.get_param_float(PARAM_DIFF_PRESS_BIAS);
+  diff_pressure_.speed = turbomath::fsign(diff_pressure_.pressure)
+    * sqrt((fabs(diff_pressure_.pressure) / (0.5 * 1.225)));
 }
 
 void Sensors::update_battery_monitor_multipliers()

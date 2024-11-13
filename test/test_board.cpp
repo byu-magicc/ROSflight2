@@ -73,13 +73,13 @@ uint8_t testBoard::serial_read() { return 0; }
 void testBoard::serial_flush() {}
 
 // sensors
-void testBoard::sensors_init() {};
-uint16_t testBoard::sensors_errors_count() {return 0;}
-uint16_t testBoard::sensors_init_message_count() {return 0;}
-uint16_t testBoard::sensors_init_message(char * message, uint16_t size, uint16_t i) {return 0;}
-bool testBoard::sensors_init_message_good(uint16_t i) {return false;}
+void testBoard::sensors_init(){};
+uint16_t testBoard::sensors_errors_count() { return 0; }
+uint16_t testBoard::sensors_init_message_count() { return 0; }
+uint16_t testBoard::sensors_init_message(char * message, uint16_t size, uint16_t i) { return 0; }
+bool testBoard::sensors_init_message_good(uint16_t i) { return false; }
 
-bool testBoard::imu_present() {return false;}
+bool testBoard::imu_present() { return false; }
 
 bool testBoard::imu_has_new_data()
 {

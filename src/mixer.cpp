@@ -45,6 +45,8 @@ Mixer::Mixer(ROSflight & _rf)
 
 void Mixer::init() { init_mixing(); }
 
+float * Mixer::raw_outputs(void) { return raw_outputs_; }
+
 void Mixer::param_change_callback(uint16_t param_id)
 {
   switch (param_id) {
@@ -89,39 +91,10 @@ void Mixer::init_mixing()
 void Mixer::init_PWM()
 {
   if (mixer_to_use_ != nullptr) {
-    RF_.board_.pwm_init_multi(mixer_to_use_->default_pwm_rate, NUM_MIXER_OUTPUTS);
+    RF_.board_.pwm_init(mixer_to_use_->default_pwm_rate, NUM_MIXER_OUTPUTS);
   } else {
-    RF_.board_.pwm_init_multi(passthrough_mixing.default_pwm_rate, NUM_MIXER_OUTPUTS);
+    RF_.board_.pwm_init(passthrough_mixing.default_pwm_rate, NUM_MIXER_OUTPUTS);
   }
-}
-
-void Mixer::write_motor(uint8_t index, float value)
-{
-  if (RF_.state_manager_.state().armed) {
-    if (value > 1.0) {
-      value = 1.0;
-    } else if (value < RF_.params_.get_param_float(PARAM_MOTOR_IDLE_THROTTLE)
-               && RF_.params_.get_param_int(PARAM_SPIN_MOTORS_WHEN_ARMED)) {
-      value = RF_.params_.get_param_float(PARAM_MOTOR_IDLE_THROTTLE);
-    } else if (value < 0.0) {
-      value = 0.0;
-    }
-  } else {
-    value = 0.0;
-  }
-  raw_outputs_[index] = value;
-  RF_.board_.pwm_write(index, raw_outputs_[index]);
-}
-
-void Mixer::write_servo(uint8_t index, float value)
-{
-  if (value > 1.0) {
-    value = 1.0;
-  } else if (value < -1.0) {
-    value = -1.0;
-  }
-  raw_outputs_[index] = value;
-  RF_.board_.pwm_write(index, raw_outputs_[index] * 0.5 + 0.5);
 }
 
 void Mixer::set_new_aux_command(aux_command_t new_aux_command)
@@ -216,7 +189,8 @@ void Mixer::mix_output()
       raw_outputs_[i] = value;
     }
   }
-  RF_.board_.pwm_write_multi(raw_outputs_, NUM_TOTAL_OUTPUTS);
+  // moved this up a call level
+  //  RF_.board_.pwm_write(raw_outputs_, NUM_TOTAL_OUTPUTS);
 }
 
 } // namespace rosflight_firmware

@@ -41,8 +41,136 @@
 #include <cstdint>
 #include <cstring>
 
+#include <estimator.h>
+
 namespace rosflight_firmware
 {
+
+typedef struct //__attribute__((__packed__))
+{
+  uint64_t timestamp; // us, time of data read complete
+  float voltage;
+  float current;
+  float temperature; // STM32 temperature, not batter temperature
+} BatteryStruct;
+
+typedef struct //__attribute__((__packed__))
+{
+  uint64_t timestamp; // us, time of data read complete
+  float accel[3];     // rad/s
+  float gyro[3];      // rad/s
+  float temperature;  // K
+} ImuStruct;
+
+// User version in estimator.h
+typedef Estimator::AttitudeStruct AttitudeStruct;
+
+typedef struct //__attribute__((__packed__))
+{
+  uint64_t timestamp; // us, time of data read complete
+  float pressure;     // Pa
+  float temperature;  // K
+  union
+  {
+    float altitude;
+    float speed;
+  };
+} PressureStruct;
+
+enum class SensorRangeType // c.f., ROSFLIGHT_RANGE_TYPE
+{
+  ROSFLIGHT_RANGE_SONAR = 0, /*  | */
+  ROSFLIGHT_RANGE_LIDAR = 1, /*  | */
+  END = 2,                   /*  | */
+};
+
+typedef struct //__attribute__((__packed__))
+{
+  uint64_t timestamp;   // us, time of data read complete
+  float range;          // m
+  float min_range;      // m
+  float max_range;      // m
+  SensorRangeType type; // ROSFLIGHT_RANGE_SONAR, ROSFLIGHT_RANGE_SONAR
+} RangeStruct;
+
+typedef struct //__attribute__((packed))
+{
+  uint64_t timestamp; // us, time of data read complete
+  float flux[3];      // T, magnetic flux density
+  float temperature;  // K
+} MagStruct;
+
+#define RC_STRUCT_CHANNELS                                                                         \
+  24           // 16 analog + 8 digital MUST BE > 14 (Mavlink message size is hardware to 14)
+typedef struct //__attribute__((packed))
+{
+  uint64_t timestamp; // us, time of data read complete
+  uint8_t nChan;
+  float chan[RC_STRUCT_CHANNELS];
+  bool frameLost;
+  bool failsafeActivated;
+} RcStruct;
+
+enum class GNSSFixType // quality from GGA
+{
+  GNSS_FIX_TYPE_NO_FIX = 0,
+  GNSS_FIX_TYPE_DEAD_RECKONING_ONLY = 1,
+  GNSS_FIX_TYPE_2D_FIX = 2,
+  GNSS_FIX_TYPE_3D_FIX = 3,
+  GNSS_FIX_TYPE_GNSS_PLUS_DEAD_RECKONING = 4,
+  GNSS_FIX_TYPE_TIME_FIX_ONLY = 5,
+  GNSS_FIX_RTK_FLOAT = 6,
+  GNSS_FIX_RTK_FIXED = 7,
+  END = 8
+};
+
+typedef struct //__attribute__((__packed__))
+{
+  uint64_t timestamp; // us, time of data read complete
+  uint64_t pps;       // most recent pps timestamp
+  uint64_t time;      // Unix time, in seconds (redundant)
+  // GPS Time
+  uint32_t time_of_week; //     / PVT
+  uint16_t year;         // RMC / PVT
+  uint8_t month;         // RMC / PVT
+  uint8_t day;           // RMC / PVT
+  uint8_t hour;          // GGA RMC UTC Time / PVT
+  uint8_t min;           // GGA RMC UTC Time / PVT
+  uint8_t sec;           // GGA RMC UTC Time / PVT
+  uint32_t nano;         // GGA RMC UTC Time (ms) / PVT nano
+  uint32_t t_acc;
+  int32_t lon;              // GGA RMC / PVT
+  int32_t lat;              // GGA RMC / PVT
+  int32_t height_ellipsoid; //GGA RMC (computed) / PVT
+  int32_t height_msl;       // GGA / PVT
+  uint32_t h_acc;           // GST (lat and lon) / PVT hAcc
+  uint32_t v_acc;           // GST / PVT vAcc
+  int32_t ground_speed;     // RMC / PVT gSpeed
+  int32_t course;           // RMC / PVT headMot
+  int32_t course_accy;
+  int32_t vel_n;       // no / PVT (RMC compute from ground velocity)
+  int32_t vel_e;       // no / PVT (RMC compute from ground velocity)
+  int32_t vel_d;       // no / PVT
+  uint32_t speed_accy; // no /PVT (sACC) speed accuracy
+  uint32_t mag_var;    // RMC / PVT
+  // Fix
+  uint8_t fix_type; // RMC (posmode), compute from GGA(quality) /PVT flags
+  uint8_t valid;    // RMC (status), compute from GGA (0 or 6)
+  uint8_t num_sat;  // GGA
+  uint16_t dop;     // GGA RMC / PVT (pdop)
+  struct
+  {
+    int32_t x;      // cm // not available on NMEA
+    int32_t y;      // cm
+    int32_t z;      // cm
+    uint32_t p_acc; // cm
+    int32_t vx;     // cm/s
+    int32_t vy;     // cm/s
+    int32_t vz;     // cm/s
+    uint32_t s_acc; // cm/s
+  } ecef;
+} GnssStruct;
+
 typedef struct
 {
   bool imu;
@@ -56,130 +184,25 @@ typedef struct
   bool rc;
 } got_flags;
 
-enum GNSSFixType
-{
-  GNSS_FIX_TYPE_NO_FIX = 0,
-  GNSS_FIX_TYPE_DEAD_RECKONING_ONLY = 1,
-  GNSS_FIX_TYPE_2D_FIX = 2,
-  GNSS_FIX_TYPE_3D_FIX = 3,
-  GNSS_FIX_TYPE_GNSS_PLUS_DEAD_RECKONING = 4,
-  GNSS_FIX_TYPE_TIME_FIX_ONLY = 5,
-};
-
-struct GNSSData
-{
-  struct ECEF
-  {
-    int32_t x;      // cm
-    int32_t y;      // cm
-    int32_t z;      // cm
-    uint32_t p_acc; // cm
-    int32_t vx;     // cm/s
-    int32_t vy;     // cm/s
-    int32_t vz;     // cm/s
-    uint32_t s_acc; // cm/s
-  };
-
-  GNSSFixType fix_type;
-  uint32_t time_of_week;
-  uint64_t time;  // Unix time, in seconds
-  uint64_t nanos; // Fractional time
-  int32_t lat;    // deg*10^-7
-  int32_t lon;    // deg*10^-7
-  int32_t height; // mm
-  int32_t vel_n;  // mm/s
-  int32_t vel_e;  // mm/s
-  int32_t vel_d;  // mm/s
-  uint32_t h_acc; // mm
-  uint32_t v_acc; // mm
-
-  ECEF ecef;
-
-  uint64_t rosflight_timestamp; // microseconds, time stamp of last byte in the message
-
-  GNSSData() { memset(this, 0, sizeof(GNSSData)); }
-};
-
-struct GNSSFull
-{
-  uint64_t time_of_week;
-  uint16_t year;
-  uint8_t month;
-  uint8_t day;
-  uint8_t hour;
-  uint8_t min;
-  uint8_t sec;
-  uint8_t valid;
-  uint32_t t_acc;
-  int32_t nano;
-  uint8_t fix_type;
-  uint8_t num_sat;
-  int32_t lon;
-  int32_t lat;
-  int32_t height;
-  int32_t height_msl;
-  uint32_t h_acc;
-  uint32_t v_acc;
-  int32_t vel_n;
-  int32_t vel_e;
-  int32_t vel_d;
-  int32_t g_speed;
-  int32_t head_mot;
-  uint32_t s_acc;
-  uint32_t head_acc;
-  uint16_t p_dop;
-  uint64_t rosflight_timestamp; // microseconds, time stamp of last byte in the message
-
-  GNSSFull() { memset(this, 0, sizeof(GNSSFull)); }
-};
-
 class ROSflight;
 
 class Sensors : public ParamListenerInterface
 {
 public:
-  struct Data
-  {
-    turbomath::Vector accel = {0, 0, 0};
-    turbomath::Vector gyro = {0, 0, 0};
-    turbomath::Quaternion fcu_orientation = {1, 0, 0, 0};
-    float imu_temperature = 0;
-    uint64_t imu_time = 0;
+  PressureStruct * get_diff_pressure(void) { return &diff_pressure_; }
+  PressureStruct * get_baro(void) { return &baro_; }
+  RangeStruct * get_sonar(void) { return &sonar_; }
+  ImuStruct * get_imu(void) { return &imu_; }
+  BatteryStruct * get_battery(void) { return &battery_; }
+  RcStruct * get_output_raw(void) { return &output_raw_; }
+  RcStruct * get_rc_(void) { return &rc_; }
+  MagStruct * get_mag(void) { return &mag_; }
+  GnssStruct * get_gnss(void) { return &gnss_; }
 
-    float diff_pressure_ias = 0;
-    float diff_pressure = 0;
-    float diff_pressure_temp = 0;
-
-    float baro_altitude = 0;
-    float baro_pressure = 0;
-    float baro_temperature = 0;
-
-    float sonar_range = 0;
-    bool sonar_range_valid = false;
-
-    GNSSData gnss_data;
-    GNSSFull gnss_full;
-    float gps_CNO = 0; // What is this?
-    bool gnss_present = false;
-
-    turbomath::Vector mag = {0, 0, 0};
-
-    bool baro_present = false;
-    bool mag_present = false;
-    bool sonar_present = false;
-    bool diff_pressure_present = false;
-
-    bool battery_monitor_present = false;
-    float battery_voltage = 0;
-    float battery_current = 0;
-  };
+  float read_rc_chan(uint8_t chan) { return rc_.chan[chan]; }
 
   Sensors(ROSflight & rosflight);
 
-  inline const Data & data() const { return data_; }
-  void get_filtered_IMU(turbomath::Vector & accel, turbomath::Vector & gyro, uint64_t & stamp_us);
-
-  // function declarations
   void init();
   got_flags run();
   void param_change_callback(uint16_t param_id) override;
@@ -191,19 +214,21 @@ public:
   bool start_diff_pressure_calibration(void);
   bool gyro_calibration_complete(void);
 
-  inline bool should_send_imu_data(void)
-  {
-    if (imu_data_sent_) {
-      return false;
-    } else {
-      imu_data_sent_ = true;
-    }
-    return true;
-  }
-
-  got_flags got;
-
 private:
+  // Data
+  PressureStruct diff_pressure_ = {};
+  PressureStruct baro_ = {};
+  RangeStruct sonar_ = {};
+  ImuStruct imu_ = {};
+  BatteryStruct battery_ = {};
+  RcStruct output_raw_ = {};
+  RcStruct rc_ = {};
+  MagStruct mag_ = {};
+  GnssStruct gnss_ = {};
+
+  void rotate_imu_in_place(ImuStruct * imu, turbomath::Quaternion q);
+  turbomath::Quaternion fcu_orientation_ = {1, 0, 0, 0};
+
   static const int SENSOR_CAL_DELAY_CYCLES;
   static const int SENSOR_CAL_CYCLES;
   static const float BARO_MAX_CALIBRATION_VARIANCE;
@@ -222,14 +247,11 @@ private:
 
   ROSflight & rf_;
 
-  Data data_;
-
   float accel_[3] = {0, 0, 0};
   float gyro_[3] = {0, 0, 0};
 
   bool calibrating_acc_flag_ = false;
   bool calibrating_gyro_flag_ = false;
-  uint8_t next_sensor_to_update_ = BAROMETER;
   void init_imu();
   void calibrate_accel(void);
   void calibrate_gyro(void);
@@ -239,16 +261,7 @@ private:
   void correct_mag(void);
   void correct_baro(void);
   void correct_diff_pressure(void);
-  bool update_imu(void);
-  void update_battery_monitor(void);
-  void update_other_sensors(void);
-  void look_for_disabled_sensors(void);
   void update_battery_monitor_multipliers(void);
-  uint32_t last_time_look_for_disarmed_sensors_ = 0;
-  uint32_t last_imu_update_ms_ = 0;
-
-  bool new_imu_data_;
-  bool imu_data_sent_;
 
   // IMU calibration
   uint16_t gyro_calibration_count_ = 0;
@@ -259,12 +272,6 @@ private:
   float acc_temp_sum_ = 0.0f;
   turbomath::Vector max_ = {-1000.0f, -1000.0f, -1000.0f};
   turbomath::Vector min_ = {1000.0f, 1000.0f, 1000.0f};
-
-  // Filtered IMU
-  turbomath::Vector accel_int_;
-  turbomath::Vector gyro_int_;
-  uint64_t int_start_us_;
-  uint64_t prev_imu_read_time_us_;
 
   // Baro Calibration
   bool baro_calibrated_ = false;
@@ -280,7 +287,6 @@ private:
   float diff_pressure_calibration_mean_ = 0.0f;
   float diff_pressure_calibration_var_ = 0.0f;
 
-  uint32_t last_battery_monitor_update_ms_ = 0;
   // Battery Monitor
   float battery_voltage_alpha_{0.995};
   float battery_current_alpha_{0.995};

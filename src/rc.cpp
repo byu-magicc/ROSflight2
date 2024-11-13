@@ -172,7 +172,7 @@ bool RC::check_rc_lost()
   } else {
     // go into failsafe if we get an invalid RC command for any channel
     for (int8_t i = 0; i < RF_.params_.get_param_int(PARAM_RC_NUM_CHANNELS); i++) {
-      float pwm = RF_.board_.rc_read(i);
+      float pwm = RF_.sensors_.read_rc_chan(i);
       if (pwm < -0.25 || pwm > 1.25) { failsafe = true; }
     }
   }
@@ -237,7 +237,7 @@ bool RC::run()
 
   // read and normalize stick values
   for (uint8_t channel = 0; channel < static_cast<uint8_t>(STICKS_COUNT); channel++) {
-    float pwm = RF_.board_.rc_read(sticks[channel].channel);
+    float pwm = RF_.sensors_.read_rc_chan(sticks[channel].channel);
     if (sticks[channel].one_sided) { // generally only F is one_sided
       stick_values[channel] = pwm;
     } else {
@@ -248,7 +248,7 @@ bool RC::run()
   // read and interpret switch values
   for (uint8_t channel = 0; channel < static_cast<uint8_t>(SWITCHES_COUNT); channel++) {
     if (switches[channel].mapped) {
-      float pwm = RF_.board_.rc_read(switches[channel].channel);
+      float pwm = RF_.sensors_.read_rc_chan(switches[channel].channel);
       if (switches[channel].direction < 0) {
         switch_values[channel] = pwm < 0.2;
       } else {

@@ -239,8 +239,6 @@ public:
   static constexpr uint8_t PARAMS_NAME_LENGTH = 16;
 
 private:
-
-
   typedef struct
   {
     uint32_t version;

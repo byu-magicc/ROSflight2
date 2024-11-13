@@ -71,7 +71,6 @@ CommManager::CommManager(ROSflight & rf, CommLinkInterface & comm_link)
     , comm_link_(comm_link)
 {}
 
-
 void CommManager::init()
 {
   comm_link_.init(static_cast<uint32_t>(RF_.params_.get_param_int(PARAM_BAUD_RATE)),
@@ -109,21 +108,20 @@ void CommManager::send_param_value(uint16_t param_id)
   if (param_id < PARAMS_COUNT) {
     switch (RF_.params_.get_param_type(param_id)) {
       case PARAM_TYPE_INT32:
-        comm_link_.send_param_value_int(sysid_, param_id, RF_.params_.get_param_name(param_id),
-                                        RF_.params_.get_param_int(param_id),
-                                        static_cast<uint16_t>(PARAMS_COUNT));
+        comm_link_.send_param_value_int(
+          sysid_, RF_.board_.clock_micros(), param_id, RF_.params_.get_param_name(param_id),
+          RF_.params_.get_param_int(param_id), static_cast<uint16_t>(PARAMS_COUNT));
         break;
       case PARAM_TYPE_FLOAT:
-        comm_link_.send_param_value_float(sysid_, param_id, RF_.params_.get_param_name(param_id),
-                                          RF_.params_.get_param_float(param_id),
-                                          static_cast<uint16_t>(PARAMS_COUNT));
+        comm_link_.send_param_value_float(
+          sysid_, RF_.board_.clock_micros(), param_id, RF_.params_.get_param_name(param_id),
+          RF_.params_.get_param_float(param_id), static_cast<uint16_t>(PARAMS_COUNT));
         break;
       default:
         break;
     }
   }
 }
-
 
 void CommManager::log(CommLinkInterface::LogSeverity severity, const char * fmt, ...)
 {
@@ -140,7 +138,7 @@ void CommManager::log(CommLinkInterface::LogSeverity severity, const char * fmt,
 void CommManager::log_message(CommLinkInterface::LogSeverity severity, char * text)
 {
   if (initialized_ && connected_) {
-    comm_link_.send_log_message(sysid_, severity, text);
+    comm_link_.send_log_message(sysid_, RF_.board_.clock_micros(), severity, text);
   } else {
     log_buffer_.add_message(severity, text);
   }
@@ -148,7 +146,8 @@ void CommManager::log_message(CommLinkInterface::LogSeverity severity, char * te
 
 void CommManager::send_heartbeat(void)
 {
-  comm_link_.send_heartbeat(sysid_, static_cast<bool>(RF_.params_.get_param_int(PARAM_FIXED_WING)));
+  comm_link_.send_heartbeat(sysid_, RF_.board_.clock_micros(),
+                            static_cast<bool>(RF_.params_.get_param_int(PARAM_FIXED_WING)));
 }
 
 void CommManager::send_status(void)
@@ -156,7 +155,8 @@ void CommManager::send_status(void)
   if (!initialized_) { return; }
 
   uint8_t control_mode = 0;
-  if (RF_.params_.get_param_int(PARAM_FIXED_WING) || RF_.command_manager_.combined_control().x.type == PASSTHROUGH) {
+  if (RF_.params_.get_param_int(PARAM_FIXED_WING)
+      || RF_.command_manager_.combined_control().x.type == PASSTHROUGH) {
     control_mode = MODE_PASS_THROUGH;
   } else if (RF_.command_manager_.combined_control().x.type == ANGLE) {
     control_mode = MODE_ROLL_PITCH_YAWRATE_THROTTLE;
@@ -165,117 +165,76 @@ void CommManager::send_status(void)
   }
 
   comm_link_.send_status(
-    sysid_, RF_.state_manager_.state().armed, RF_.state_manager_.state().failsafe,
-    RF_.command_manager_.rc_override_active(), RF_.command_manager_.offboard_control_active(),
-    RF_.state_manager_.state().error_codes, control_mode, RF_.board_.sensors_errors_count(),
-    RF_.get_loop_time_us());
+    sysid_, RF_.board_.clock_micros(), RF_.state_manager_.state().armed,
+    RF_.state_manager_.state().failsafe, RF_.command_manager_.rc_override_active(),
+    RF_.command_manager_.offboard_control_active(), RF_.state_manager_.state().error_codes,
+    control_mode, RF_.board_.sensors_errors_count(), RF_.get_loop_time_us());
 }
 
 void CommManager::send_attitude(void)
 {
-  comm_link_.send_attitude_quaternion(sysid_, RF_.estimator_.state().timestamp_us,
-                                      RF_.estimator_.state().attitude,
-                                      RF_.estimator_.state().angular_velocity);
+  comm_link_.send_attitude_quaternion(sysid_, *RF_.estimator_.get_attitude());
 }
 
-void CommManager::send_imu(void)
-{
-  turbomath::Vector acc, gyro;
-  uint64_t stamp_us;
-  RF_.sensors_.get_filtered_IMU(acc, gyro, stamp_us);
-  comm_link_.send_imu(sysid_, stamp_us, acc, gyro, RF_.sensors_.data().imu_temperature);
-}
+void CommManager::send_imu(void) { comm_link_.send_imu(sysid_, *RF_.sensors_.get_imu()); }
 
 void CommManager::send_output_raw(void)
 {
-  comm_link_.send_output_raw(sysid_, RF_.board_.clock_millis(), RF_.mixer_.get_outputs());
+  comm_link_.send_output_raw(sysid_, *RF_.sensors_.get_output_raw());
 }
 
-void CommManager::send_rc_raw(void)
-{
-  // TODO better mechanism for retreiving RC (through RC module, not PWM-specific)
-  uint16_t channels[8] = {static_cast<uint16_t>(RF_.board_.rc_read(0) * 1000 + 1000),
-                          static_cast<uint16_t>(RF_.board_.rc_read(1) * 1000 + 1000),
-                          static_cast<uint16_t>(RF_.board_.rc_read(2) * 1000 + 1000),
-                          static_cast<uint16_t>(RF_.board_.rc_read(3) * 1000 + 1000),
-                          static_cast<uint16_t>(RF_.board_.rc_read(4) * 1000 + 1000),
-                          static_cast<uint16_t>(RF_.board_.rc_read(5) * 1000 + 1000),
-                          static_cast<uint16_t>(RF_.board_.rc_read(6) * 1000 + 1000),
-                          static_cast<uint16_t>(RF_.board_.rc_read(7) * 1000 + 1000)};
-  comm_link_.send_rc_raw(sysid_, RF_.board_.clock_millis(), channels);
-}
+void CommManager::send_rc_raw(void) { comm_link_.send_rc_raw(sysid_, *RF_.sensors_.get_rc_()); }
 
 void CommManager::send_diff_pressure(void)
 {
-  comm_link_.send_diff_pressure(sysid_, RF_.sensors_.data().diff_pressure_ias,
-                                RF_.sensors_.data().diff_pressure,
-                                RF_.sensors_.data().diff_pressure_temp);
+  comm_link_.send_diff_pressure(sysid_, *RF_.sensors_.get_diff_pressure());
 }
 
 void CommManager::send_baro(void)
 {
-  comm_link_.send_baro(sysid_, RF_.sensors_.data().baro_altitude, RF_.sensors_.data().baro_pressure,
-                       RF_.sensors_.data().baro_temperature);
+  comm_link_.send_diff_pressure(sysid_, *RF_.sensors_.get_baro());
 }
 
-void CommManager::send_sonar(void)
-{
-  comm_link_.send_sonar(sysid_,
-                        0, // TODO set sensor type (sonar/lidar), use enum
-                        RF_.sensors_.data().sonar_range, 8.0, 0.25);
-}
+void CommManager::send_sonar(void) { comm_link_.send_sonar(sysid_, *RF_.sensors_.get_sonar()); }
 
-void CommManager::send_mag(void) { comm_link_.send_mag(sysid_, RF_.sensors_.data().mag); }
+void CommManager::send_mag(void) { comm_link_.send_mag(sysid_, *RF_.sensors_.get_mag()); }
+
 void CommManager::send_battery_status(void)
 {
-  comm_link_.send_battery_status(sysid_, RF_.sensors_.data().battery_voltage,
-                                 RF_.sensors_.data().battery_current);
+  comm_link_.send_battery_status(sysid_, *RF_.sensors_.get_battery());
 }
 
 void CommManager::send_backup_data(const StateManager::BackupData & backup_data)
 {
   if (connected_) {
-    comm_link_.send_error_data(sysid_, backup_data);
+    comm_link_.send_error_data(sysid_, RF_.board_.clock_micros(), backup_data);
   } else {
     backup_data_buffer_ = backup_data;
     have_backup_data_ = true;
   }
 }
 
-void CommManager::send_gnss(void)
-{
-  const GNSSData & gnss_data = RF_.sensors_.data().gnss_data;
+void CommManager::send_gnss(void) { comm_link_.send_gnss(sysid_, *RF_.sensors_.get_gnss()); }
 
-  if (gnss_data.time_of_week != last_sent_gnss_tow_) {
-    comm_link_.send_gnss(sysid_, gnss_data);
-    last_sent_gnss_tow_ = gnss_data.time_of_week;
+void CommManager::send_named_value_int(const char * const name, int32_t value)
+{
+  comm_link_.send_named_value_int(sysid_, RF_.board_.clock_micros(), name, value);
+}
+
+void CommManager::send_named_value_float(const char * const name, float value)
+{
+  comm_link_.send_named_value_float(sysid_, RF_.board_.clock_micros(), name, value);
+}
+
+void CommManager::send_next_param(void)
+{
+  if (send_params_index_ < PARAMS_COUNT) {
+    send_param_value(static_cast<uint16_t>(send_params_index_));
+    send_params_index_++;
   }
 }
 
-void CommManager::send_gnss_full()
-{
-  const GNSSFull & gnss_full = RF_.sensors_.data().gnss_full;
-
-  if (gnss_full.time_of_week != last_sent_gnss_full_tow_) {
-    comm_link_.send_gnss_full(sysid_, RF_.sensors_.data().gnss_full);
-    last_sent_gnss_full_tow_ = gnss_full.time_of_week;
-  }
-}
-
-void CommManager::send_low_priority(void)
-{
-  send_next_param();
-
-  // send buffered log messages
-  if (connected_ && !log_buffer_.empty()) {
-    const LogMessageBuffer::LogMessage & msg = log_buffer_.oldest();
-    comm_link_.send_log_message(sysid_, msg.severity, msg.msg);
-    log_buffer_.pop();
-  }
-}
-
-// function definitions
-void CommManager::stream(got_flags got)
+void CommManager::transmit(got_flags got)
 {
   uint64_t time_us = RF_.board_.clock_micros();
 
@@ -301,7 +260,7 @@ void CommManager::stream(got_flags got)
   // GPS data (GNSS Packed)
   if (got.gnss) { send_gnss(); }
   // GPS full data (not needed)
-  if (got.gnss_full) { send_gnss_full(); }
+  //if (got.gnss_full) { send_gnss_full(); }
   if (got.rc) { send_rc_raw(); }
 
   {
@@ -317,62 +276,24 @@ void CommManager::stream(got_flags got)
     }
   }
 
-  send_low_priority(); // parameter values and logging messages
-}
+  send_next_param();
 
-void CommManager::send_named_value_int(const char * const name, int32_t value)
-{
-  comm_link_.send_named_value_int(sysid_, RF_.board_.clock_millis(), name, value);
-}
-
-void CommManager::send_named_value_float(const char * const name, float value)
-{
-  comm_link_.send_named_value_float(sysid_, RF_.board_.clock_millis(), name, value);
-}
-
-void CommManager::send_next_param(void)
-{
-  if (send_params_index_ < PARAMS_COUNT) {
-    send_param_value(static_cast<uint16_t>(send_params_index_));
-    send_params_index_++;
+  // send buffered log messages
+  if (connected_ && !log_buffer_.empty()) {
+    const LogMessageBuffer::LogMessage & msg = log_buffer_.oldest();
+    comm_link_.send_log_message(sysid_, RF_.board_.clock_micros(), msg.severity, msg.msg);
+    log_buffer_.pop();
   }
 }
-
-CommManager::Stream::Stream(uint32_t period_us, std::function<void(void)> send_function)
-    : period_us_(period_us)
-    , next_time_us_(0)
-    , send_function_(send_function)
-{}
-
-void CommManager::Stream::stream(uint64_t now_us)
-{
-  if (period_us_ > 0 && now_us >= next_time_us_) {
-    // if you fall behind, skip messages
-    do {
-      next_time_us_ += period_us_;
-    } while (next_time_us_ < now_us);
-
-    send_function_();
-  }
-}
-
-void CommManager::Stream::set_rate(uint32_t rate_hz)
-{
-  period_us_ = (rate_hz == 0) ? 0 : 1000000 / rate_hz;
-}
-
 
 void CommManager::receive(void)
 {
   CommLinkInterface::CommMessage message;
 
   //PTT This could hang if there is too much incomming serial data!
-  while (RF_.board_.serial_bytes_available())
-  {
-    if (comm_link_.parse_char(RF_.board_.serial_read(), &message))
-    {
-      switch(message.type)
-      {
+  while (RF_.board_.serial_bytes_available()) {
+    if (comm_link_.parse_char(RF_.board_.serial_read(), &message)) {
+      switch (message.type) {
         case CommLinkInterface::CommMessageType::MESSAGE_OFFBOARD_CONTROL:
           receive_msg_offboard_control(&message);
           break;
@@ -407,38 +328,34 @@ void CommManager::receive(void)
   }
 }
 
-
-void CommManager::receive_msg_param_request_list(CommLinkInterface::CommMessage *message)
+void CommManager::receive_msg_param_request_list(CommLinkInterface::CommMessage * message)
 {
-  (void)message; // unused
+  (void) message; // unused
   send_params_index_ = 0;
 }
 
-void CommManager::receive_msg_param_request_read(CommLinkInterface::CommMessage *message)
+void CommManager::receive_msg_param_request_read(CommLinkInterface::CommMessage * message)
 {
-  uint16_t id = (message->param_read_.id < 0) ? RF_.params_.lookup_param_id(message->param_read_.name)
-                                  : static_cast<uint16_t>(message->param_read_.id);
+  uint16_t id = (message->param_read_.id < 0)
+    ? RF_.params_.lookup_param_id(message->param_read_.name)
+    : static_cast<uint16_t>(message->param_read_.id);
   if (id < PARAMS_COUNT) { send_param_value(id); }
 }
 
-void CommManager::receive_msg_param_set(CommLinkInterface::CommMessage *message)
+void CommManager::receive_msg_param_set(CommLinkInterface::CommMessage * message)
 {
   uint16_t id = RF_.params_.lookup_param_id(message->param_set_.name);
 
-  if (id < PARAMS_COUNT)
-  {
-    if(RF_.params_.get_param_type(id) == PARAM_TYPE_FLOAT)
-    {
+  if (id < PARAMS_COUNT) {
+    if (RF_.params_.get_param_type(id) == PARAM_TYPE_FLOAT) {
       RF_.params_.set_param_float(id, message->param_set_.value.fvalue);
-    }
-    else if(RF_.params_.get_param_type(id) == PARAM_TYPE_INT32)
-    {
+    } else if (RF_.params_.get_param_type(id) == PARAM_TYPE_INT32) {
       RF_.params_.set_param_int(id, message->param_set_.value.ivalue);
     }
   }
 }
 
-void CommManager::receive_msg_rosflight_cmd(CommLinkInterface::CommMessage *message)
+void CommManager::receive_msg_rosflight_cmd(CommLinkInterface::CommMessage * message)
 {
   bool result = true;
   bool reboot_flag = false;
@@ -450,32 +367,51 @@ void CommManager::receive_msg_rosflight_cmd(CommLinkInterface::CommMessage *mess
   } else {
     result = true;
 
-    switch (message->rosflight_cmd_.command)
-    {
-      case CommLinkInterface::CommMessageCommand::ROSFLIGHT_CMD_READ_PARAMS:           result = RF_.params_.read(); break;
-      case CommLinkInterface::CommMessageCommand::ROSFLIGHT_CMD_WRITE_PARAMS:          result = RF_.params_.write(); break;
-      case CommLinkInterface::CommMessageCommand::ROSFLIGHT_CMD_SET_PARAM_DEFAULTS:    RF_.params_.set_defaults(); break;
-      case CommLinkInterface::CommMessageCommand::ROSFLIGHT_CMD_ACCEL_CALIBRATION:     result = RF_.sensors_.start_imu_calibration(); break;
-      case CommLinkInterface::CommMessageCommand::ROSFLIGHT_CMD_GYRO_CALIBRATION:      result = RF_.sensors_.start_gyro_calibration(); break;
-      case CommLinkInterface::CommMessageCommand::ROSFLIGHT_CMD_AIRSPEED_CALIBRATION:  result = RF_.sensors_.start_diff_pressure_calibration(); break;
-      case CommLinkInterface::CommMessageCommand::ROSFLIGHT_CMD_RC_CALIBRATION:        RF_.controller_.calculate_equilbrium_torque_from_rc(); break;
-      case CommLinkInterface::CommMessageCommand::ROSFLIGHT_CMD_REBOOT:                reboot_flag = true; break;
-      case CommLinkInterface::CommMessageCommand::ROSFLIGHT_CMD_REBOOT_TO_BOOTLOADER:  reboot_to_bootloader_flag = true; break;
-      case CommLinkInterface::CommMessageCommand::ROSFLIGHT_CMD_SEND_VERSION:          comm_link_.send_version(sysid_, GIT_VERSION_STRING); break;
+    switch (message->rosflight_cmd_.command) {
+      case CommLinkInterface::CommMessageCommand::ROSFLIGHT_CMD_READ_PARAMS:
+        result = RF_.params_.read();
+        break;
+      case CommLinkInterface::CommMessageCommand::ROSFLIGHT_CMD_WRITE_PARAMS:
+        result = RF_.params_.write();
+        break;
+      case CommLinkInterface::CommMessageCommand::ROSFLIGHT_CMD_SET_PARAM_DEFAULTS:
+        RF_.params_.set_defaults();
+        break;
+      case CommLinkInterface::CommMessageCommand::ROSFLIGHT_CMD_ACCEL_CALIBRATION:
+        result = RF_.sensors_.start_imu_calibration();
+        break;
+      case CommLinkInterface::CommMessageCommand::ROSFLIGHT_CMD_GYRO_CALIBRATION:
+        result = RF_.sensors_.start_gyro_calibration();
+        break;
+      case CommLinkInterface::CommMessageCommand::ROSFLIGHT_CMD_AIRSPEED_CALIBRATION:
+        result = RF_.sensors_.start_diff_pressure_calibration();
+        break;
+      case CommLinkInterface::CommMessageCommand::ROSFLIGHT_CMD_RC_CALIBRATION:
+        RF_.controller_.calculate_equilbrium_torque_from_rc();
+        break;
+      case CommLinkInterface::CommMessageCommand::ROSFLIGHT_CMD_REBOOT:
+        reboot_flag = true;
+        break;
+      case CommLinkInterface::CommMessageCommand::ROSFLIGHT_CMD_REBOOT_TO_BOOTLOADER:
+        reboot_to_bootloader_flag = true;
+        break;
+      case CommLinkInterface::CommMessageCommand::ROSFLIGHT_CMD_SEND_VERSION:
+        comm_link_.send_version(sysid_, RF_.board_.clock_micros(), GIT_VERSION_STRING);
+        break;
       // Unsupported commands. Report failure.
       case CommLinkInterface::CommMessageCommand::ROSFLIGHT_CMD_RESET_ORIGIN:
       case CommLinkInterface::CommMessageCommand::ROSFLIGHT_CMD_SEND_ALL_CONFIG_INFOS:
       default:
         result = false;
-        log(CommLinkInterface::LogSeverity::LOG_ERROR, "Unsupported CommLinkInterface::ROSFLIGHT CMD %d", message->rosflight_cmd_.command);
+        log(CommLinkInterface::LogSeverity::LOG_ERROR,
+            "Unsupported CommLinkInterface::ROSFLIGHT CMD %d", message->rosflight_cmd_.command);
     }
   }
-  CommLinkInterface::RosflightCmdResponse response = cast_in_range( result, CommLinkInterface::RosflightCmdResponse );
+  CommLinkInterface::RosflightCmdResponse response =
+    cast_in_range(result, CommLinkInterface::RosflightCmdResponse);
 
-
-  comm_link_.send_command_ack(sysid_, message->rosflight_cmd_.command, response);
-
-
+  comm_link_.send_command_ack(sysid_, RF_.board_.clock_micros(), message->rosflight_cmd_.command,
+                              response);
 
   if (reboot_flag || reboot_to_bootloader_flag) {
     RF_.board_.clock_delay(20);
@@ -484,17 +420,18 @@ void CommManager::receive_msg_rosflight_cmd(CommLinkInterface::CommMessage *mess
   RF_.board_.serial_flush();
 }
 
-void CommManager::receive_msg_timesync(CommLinkInterface::CommMessage *message)
+void CommManager::receive_msg_timesync(CommLinkInterface::CommMessage * message)
 {
   uint64_t now_us = RF_.board_.clock_micros();
 
   // Respond if this is a request local==0 vs. response local!=0
   if (message->time_sync_.local == 0) {
-    comm_link_.send_timesync(sysid_, static_cast<int64_t>(now_us) * 1000, message->time_sync_.remote);
+    comm_link_.send_timesync(sysid_, RF_.board_.clock_micros(), static_cast<int64_t>(now_us) * 1000,
+                             message->time_sync_.remote);
   }
 }
 
-void CommManager::receive_msg_offboard_control(CommLinkInterface::CommMessage *message)
+void CommManager::receive_msg_offboard_control(CommLinkInterface::CommMessage * message)
 {
   // put values into a new command struct
   control_t new_offboard_command;
@@ -541,12 +478,12 @@ void CommManager::receive_msg_offboard_control(CommLinkInterface::CommMessage *m
   RF_.command_manager_.set_new_offboard_command(new_offboard_command);
 }
 
-void CommManager::receive_msg_rosflight_aux_cmd(CommLinkInterface::CommMessage *message)
+void CommManager::receive_msg_rosflight_aux_cmd(CommLinkInterface::CommMessage * message)
 {
   RF_.mixer_.set_new_aux_command(message->new_aux_command_);
 }
 
-void CommManager::receive_msg_external_attitude(CommLinkInterface::CommMessage *message)
+void CommManager::receive_msg_external_attitude(CommLinkInterface::CommMessage * message)
 {
   turbomath::Quaternion q;
   q.w = message->external_attitude_quaternion_.q[0];
@@ -557,22 +494,16 @@ void CommManager::receive_msg_external_attitude(CommLinkInterface::CommMessage *
   RF_.estimator_.set_external_attitude_update(q);
 }
 
-void CommManager::receive_msg_heartbeat(CommLinkInterface::CommMessage *message)
+void CommManager::receive_msg_heartbeat(CommLinkInterface::CommMessage * message)
 {
-  (void)message; // unused
+  (void) message; // unused
   connected_ = true;
 
+  // PTT consider moving this to CommManager::send_backup_data
   if (have_backup_data_) {
-    comm_link_.send_error_data(sysid_, backup_data_buffer_);
+    comm_link_.send_error_data(sysid_, RF_.board_.clock_micros(), backup_data_buffer_);
     have_backup_data_ = false;
   }
 }
 
-}
-
-
-
-
-
-
-
+} // namespace rosflight_firmware

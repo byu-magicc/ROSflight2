@@ -142,7 +142,6 @@ private:
 
   control_t & failsafe_command_;
 
-  void param_change_callback(uint16_t param_id) override;
   void init_failsafe();
 
   bool do_roll_pitch_yaw_muxing(MuxChannel channel);
@@ -153,6 +152,7 @@ private:
   bool stick_deviated(MuxChannel channel);
 
 public:
+  void param_change_callback(uint16_t param_id) override;
   CommandManager(ROSflight & _rf);
   void init();
   bool run();

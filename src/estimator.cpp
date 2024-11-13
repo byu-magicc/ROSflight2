@@ -102,17 +102,20 @@ void Estimator::param_change_callback(uint16_t param_id) { (void) param_id; }
 void Estimator::run_LPF()
 {
   float alpha_acc = RF_.params_.get_param_float(PARAM_ACC_ALPHA);
-  const turbomath::Vector & raw_accel = RF_.sensors_.data().accel;
-  accel_LPF_.x = (1.0f - alpha_acc) * raw_accel.x + alpha_acc * accel_LPF_.x;
-  accel_LPF_.y = (1.0f - alpha_acc) * raw_accel.y + alpha_acc * accel_LPF_.y;
-  accel_LPF_.z = (1.0f - alpha_acc) * raw_accel.z + alpha_acc * accel_LPF_.z;
+  //const turbomath::Vector & raw_accel = RF_.sensors_.data().accel;
+  accel_LPF_.x = (1.0f - alpha_acc) * RF_.sensors_.get_imu()->accel[0] + alpha_acc * accel_LPF_.x;
+  accel_LPF_.y = (1.0f - alpha_acc) * RF_.sensors_.get_imu()->accel[1] + alpha_acc * accel_LPF_.y;
+  accel_LPF_.z = (1.0f - alpha_acc) * RF_.sensors_.get_imu()->accel[2] + alpha_acc * accel_LPF_.z;
 
   float alpha_gyro_xy = RF_.params_.get_param_float(PARAM_GYRO_XY_ALPHA);
   float alpha_gyro_z = RF_.params_.get_param_float(PARAM_GYRO_Z_ALPHA);
-  const turbomath::Vector & raw_gyro = RF_.sensors_.data().gyro;
-  gyro_LPF_.x = (1.0f - alpha_gyro_xy) * raw_gyro.x + alpha_gyro_xy * gyro_LPF_.x;
-  gyro_LPF_.y = (1.0f - alpha_gyro_xy) * raw_gyro.y + alpha_gyro_xy * gyro_LPF_.y;
-  gyro_LPF_.z = (1.0f - alpha_gyro_z) * raw_gyro.z + alpha_gyro_z * gyro_LPF_.z;
+  //const turbomath::Vector & raw_gyro = RF_.sensors_.data().gyro;
+  gyro_LPF_.x =
+    (1.0f - alpha_gyro_xy) * RF_.sensors_.get_imu()->gyro[0] + alpha_gyro_xy * gyro_LPF_.x;
+  gyro_LPF_.y =
+    (1.0f - alpha_gyro_xy) * RF_.sensors_.get_imu()->gyro[1] + alpha_gyro_xy * gyro_LPF_.y;
+  gyro_LPF_.z =
+    (1.0f - alpha_gyro_z) * RF_.sensors_.get_imu()->gyro[2] + alpha_gyro_z * gyro_LPF_.z;
 }
 
 void Estimator::set_external_attitude_update(const turbomath::Quaternion & q)
@@ -127,7 +130,8 @@ void Estimator::run()
   // Timing Setup
   //
 
-  const uint64_t now_us = RF_.sensors_.data().imu_time;
+  const uint64_t now_us = RF_.sensors_.get_imu()->timestamp;
+
   if (last_time_ == 0) {
     last_time_ = now_us;
     last_acc_update_us_ = now_us;
@@ -218,6 +222,17 @@ void Estimator::run()
 
   // Save off adjust gyro measurements with estimated biases for control
   state_.angular_velocity = gyro_LPF_ - bias_;
+
+  attitude_.timestamp = state_.timestamp_us;
+
+  attitude_.q[0] = state_.attitude.w;
+  attitude_.q[1] = state_.attitude.x;
+  attitude_.q[2] = state_.attitude.y;
+  attitude_.q[3] = state_.attitude.z;
+
+  attitude_.rate[0] = state_.angular_velocity.x;
+  attitude_.rate[1] = state_.angular_velocity.y;
+  attitude_.rate[2] = state_.angular_velocity.z;
 
   // If it has been more than 0.5 seconds since the accel update ran and we
   // are supposed to be getting them then trigger an unhealthy estimator error.

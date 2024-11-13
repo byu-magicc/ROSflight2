@@ -1,5 +1,13 @@
 ### project settings ###
 
+# reminders:
+# cmake . -DBOARD_TO_BUILD=varmint
+# cmake --build . --target clean -j
+# cmake --build . -j
+# to run test:
+#   cmake . -DBOARD_TO_BUILD=test -DCMAKE_BUILD_TYPE=Release
+#   cmake
+
 cmake_minimum_required(VERSION 3.8)
 project(rosflight_firmware C CXX ASM)
 
