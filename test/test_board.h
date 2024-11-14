@@ -52,7 +52,8 @@ private:
 
 public:
   // setup
-  void init_board() override;
+
+  void init_board(void) override;
   void board_reset(bool bootloader) override;
 
   // clock
@@ -74,49 +75,33 @@ public:
   uint16_t sensors_init_message(char * message, uint16_t size, uint16_t i) override;
   bool sensors_init_message_good(uint16_t i) override;
 
-  bool imu_present() override;
-  bool imu_has_new_data() override;
-  bool imu_read(float accel[3], float * temperature, float gyro[3], uint64_t * time) override;
-  void imu_not_responding_error() override;
+  bool imu_read(rosflight_firmware::ImuStruct * imu) override;
 
-  bool mag_present() override;
-  bool mag_has_new_data() override;
-  bool mag_read(float mag[3]) override;
+  bool mag_read(rosflight_firmware::MagStruct * mag) override;
 
-  bool baro_present() override;
-  bool baro_has_new_data() override;
-  bool baro_read(float * pressure, float * temperature) override;
+  bool baro_read(rosflight_firmware::PressureStruct * baro) override;
 
-  bool diff_pressure_present() override;
-  bool diff_pressure_has_new_data() override;
-  bool diff_pressure_read(float * diff_pressure, float * temperature) override;
+  bool diff_pressure_read(rosflight_firmware::PressureStruct * diff_pressure) override;
 
-  bool sonar_present() override;
-  bool sonar_has_new_data() override;
-  bool sonar_read(float * range) override;
+  bool sonar_read(rosflight_firmware::RangeStruct * sonar) override;
 
-  bool gnss_present() override;
-  bool gnss_has_new_data() override;
-  bool gnss_read(GNSSData * gnss, GNSSFull * gnss_full) override;
-
-  bool battery_present() override;
-  bool battery_has_new_data() override;
-  bool battery_read(float * voltage, float * current) override;
+  // Battery
+  bool battery_read(rosflight_firmware::BatteryStruct * bat) override;
   void battery_voltage_set_multiplier(double multiplier) override;
   void battery_current_set_multiplier(double multiplier) override;
+
+  // GNSS
+  bool gnss_read(rosflight_firmware::GnssStruct * gnss) override;
 
   // RC
   void rc_init(rc_type_t rc_type) override;
   bool rc_lost() override;
-  bool rc_has_new_data() override;
-  float rc_read(uint8_t channel) override;
+  bool rc_read(rosflight_firmware::RcStruct * rc) override;
 
   // PWM
-  void pwm_init(uint32_t refresh_rate, uint16_t idle_pwm) override;
-  void pwm_init_multi(const float * rate, uint32_t channels) override;
+  void pwm_init(const float * rate, uint32_t channels) override;
   void pwm_disable() override;
-  void pwm_write(uint8_t channel, float value) override;
-  void pwm_write_multi(float * value, uint32_t channels) override;
+  void pwm_write(float * value, uint32_t channels) override;
 
   // non-volatile memory
   void memory_init() override;
@@ -132,12 +117,12 @@ public:
   void led1_off() override;
   void led1_toggle() override;
 
-  // Backup memory
-  void backup_memory_init() override {}
+  // Backup Data
+  void backup_memory_init() override;
   bool backup_memory_read(void * dest, size_t len) override;
   void backup_memory_write(const void * src, size_t len) override;
   void backup_memory_clear(size_t len) override;
-  void backup_memory_clear(); // Not an override
+  void backup_memory_clear();
 
   void set_imu(float * acc, float * gyro, uint64_t time_us);
   void set_rc(uint16_t * values);
