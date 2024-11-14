@@ -452,6 +452,7 @@ void Mavlink::send_status(uint8_t system_id, uint64_t timestamp_us, bool armed, 
                           bool rc_override, bool offboard, uint8_t error_code, uint8_t control_mode,
                           int16_t num_errors, int16_t loop_time_us)
 {
+  (void) timestamp_us; // unused
   mavlink_message_t msg;
   mavlink_msg_rosflight_status_pack(system_id, compid_, &msg, armed, failsafe, rc_override,
                                     offboard, error_code, control_mode, num_errors, loop_time_us);
