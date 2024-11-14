@@ -258,6 +258,7 @@ void Mavlink::send_baro(uint8_t system_id, const PressureStruct & baro)
 void Mavlink::send_command_ack(uint8_t system_id, uint64_t timestamp_us,
                                CommMessageCommand rosflight_cmd, RosflightCmdResponse success)
 {
+  (void) timestamp_us; // unused
   mavlink_message_t msg;
   mavlink_msg_rosflight_cmd_ack_pack(
     system_id, compid_, &msg, static_cast<uint8_t>(rosflight_cmd),
@@ -279,6 +280,7 @@ void Mavlink::send_diff_pressure(uint8_t system_id, const PressureStruct & p)
 
 void Mavlink::send_heartbeat(uint8_t system_id, uint64_t timestamp_us, bool fixed_wing)
 {
+  (void) timestamp_us; // unused
   mavlink_message_t msg;
   mavlink_msg_heartbeat_pack(system_id, compid_, &msg,
                              fixed_wing ? MAV_TYPE_FIXED_WING : MAV_TYPE_QUADROTOR, 0, 0, 0, 0);
@@ -343,6 +345,7 @@ void Mavlink::send_gnss(uint8_t system_id, const GnssStruct & gnss)
 void Mavlink::send_log_message(uint8_t system_id, uint64_t timestamp_us, LogSeverity severity,
                                const char * text)
 {
+  (void) timestamp_us; // unused
   MAV_SEVERITY mavlink_severity = MAV_SEVERITY_ENUM_END;
   switch (severity) {
     case CommLinkInterface::LogSeverity::LOG_INFO:
@@ -402,6 +405,7 @@ void Mavlink::send_output_raw(uint8_t system_id, const RcStruct & raw)
 void Mavlink::send_param_value_int(uint8_t system_id, uint64_t timestamp_us, uint16_t index,
                                    const char * const name, int32_t value, uint16_t param_count)
 {
+  (void) timestamp_us; // unused
   mavlink_param_union_t param;
   param.param_int32 = value;
 
@@ -414,6 +418,7 @@ void Mavlink::send_param_value_int(uint8_t system_id, uint64_t timestamp_us, uin
 void Mavlink::send_param_value_float(uint8_t system_id, uint64_t timestamp_us, uint16_t index,
                                      const char * const name, float value, uint16_t param_count)
 {
+  (void) timestamp_us; // unused
   mavlink_message_t msg;
   mavlink_msg_param_value_pack(system_id, 0, &msg, name, value, MAV_PARAM_TYPE_REAL32, param_count,
                                index);
@@ -455,6 +460,7 @@ void Mavlink::send_status(uint8_t system_id, uint64_t timestamp_us, bool armed, 
 
 void Mavlink::send_timesync(uint8_t system_id, uint64_t timestamp_us, int64_t tc1, int64_t ts1)
 {
+  (void) timestamp_us; // unused
   mavlink_message_t msg;
   mavlink_msg_timesync_pack(system_id, compid_, &msg, tc1, ts1);
   send_message(msg, 1);
@@ -462,6 +468,7 @@ void Mavlink::send_timesync(uint8_t system_id, uint64_t timestamp_us, int64_t tc
 
 void Mavlink::send_version(uint8_t system_id, uint64_t timestamp_us, const char * const version)
 {
+  (void) timestamp_us; // unused
   mavlink_message_t msg;
   mavlink_msg_rosflight_version_pack(system_id, compid_, &msg, version);
   send_message(msg);
@@ -470,6 +477,7 @@ void Mavlink::send_version(uint8_t system_id, uint64_t timestamp_us, const char 
 void Mavlink::send_error_data(uint8_t system_id, uint64_t timestamp_us,
                               const StateManager::BackupData & error_data)
 {
+  (void) timestamp_us; // unused
   mavlink_message_t msg;
   bool rearm = (error_data.arm_flag == StateManager::BackupData::ARM_MAGIC);
   mavlink_msg_rosflight_hard_error_pack(system_id, compid_, &msg, error_data.error_code,
