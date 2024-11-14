@@ -100,8 +100,6 @@ public:
   // RC
   virtual void rc_init(rc_type_t rc_type) = 0;
   virtual bool rc_lost() = 0;
-  //virtual bool rc_has_new_data() = 0;
-  //virtual float rc_read(uint8_t chan) = 0;
   virtual bool rc_read(rosflight_firmware::RcStruct * rc) = 0;
 
   // PWM
