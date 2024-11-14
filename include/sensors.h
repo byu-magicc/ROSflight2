@@ -100,8 +100,8 @@ typedef struct //__attribute__((packed))
   float temperature;  // K
 } MagStruct;
 
-#define RC_STRUCT_CHANNELS                                                                         \
-  24           // 16 analog + 8 digital MUST BE > 14 (Mavlink message size is hardware to 14)
+// 16 analog + 8 digital MUST BE > 14 (Mavlink message size is hardware to 14)
+#define RC_STRUCT_CHANNELS  24
 typedef struct //__attribute__((packed))
 {
   uint64_t timestamp; // us, time of data read complete
@@ -194,7 +194,6 @@ public:
   RangeStruct * get_sonar(void) { return &sonar_; }
   ImuStruct * get_imu(void) { return &imu_; }
   BatteryStruct * get_battery(void) { return &battery_; }
-  RcStruct * get_output_raw(void) { return &output_raw_; }
   RcStruct * get_rc_(void) { return &rc_; }
   MagStruct * get_mag(void) { return &mag_; }
   GnssStruct * get_gnss(void) { return &gnss_; }
@@ -221,7 +220,6 @@ private:
   RangeStruct sonar_ = {};
   ImuStruct imu_ = {};
   BatteryStruct battery_ = {};
-  RcStruct output_raw_ = {};
   RcStruct rc_ = {};
   MagStruct mag_ = {};
   GnssStruct gnss_ = {};

@@ -269,8 +269,10 @@ void Mavlink::send_command_ack(uint8_t system_id, uint64_t timestamp_us,
 
 void Mavlink::send_diff_pressure(uint8_t system_id, const PressureStruct & p)
 {
+
+  float ias = (p.pressure<0.0?-1.0:1.0)*sqrt(fabs(p.pressure) / (0.5 * 1.225));
   mavlink_message_t msg;
-  mavlink_msg_diff_pressure_pack(system_id, compid_, &msg, sqrt(p.pressure / (0.5 * 1.225)),
+  mavlink_msg_diff_pressure_pack(system_id, compid_, &msg, ias,
                                  p.pressure, p.temperature);
   send_message(msg);
 }

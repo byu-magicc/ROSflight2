@@ -45,8 +45,6 @@ Mixer::Mixer(ROSflight & _rf)
 
 void Mixer::init() { init_mixing(); }
 
-float * Mixer::raw_outputs(void) { return raw_outputs_; }
-
 void Mixer::param_change_callback(uint16_t param_id)
 {
   switch (param_id) {

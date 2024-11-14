@@ -180,7 +180,7 @@ void CommManager::send_imu(void) { comm_link_.send_imu(sysid_, *RF_.sensors_.get
 
 void CommManager::send_output_raw(void)
 {
-  comm_link_.send_output_raw(sysid_, *RF_.sensors_.get_output_raw());
+  comm_link_.send_output_raw(sysid_, *RF_.mixer_.get_output_raw());
 }
 
 void CommManager::send_rc_raw(void) { comm_link_.send_rc_raw(sysid_, *RF_.sensors_.get_rc_()); }
@@ -192,7 +192,7 @@ void CommManager::send_diff_pressure(void)
 
 void CommManager::send_baro(void)
 {
-  comm_link_.send_diff_pressure(sysid_, *RF_.sensors_.get_baro());
+  comm_link_.send_baro(sysid_, *RF_.sensors_.get_baro());
 }
 
 void CommManager::send_sonar(void) { comm_link_.send_sonar(sysid_, *RF_.sensors_.get_sonar()); }

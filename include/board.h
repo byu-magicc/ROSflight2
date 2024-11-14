@@ -77,7 +77,6 @@ public:
 
   // IMU
   virtual bool imu_read(rosflight_firmware::ImuStruct * imu) = 0;
-  virtual void imu_not_responding_error() = 0;
 
   // Mag
   virtual bool mag_read(rosflight_firmware::MagStruct * mag) = 0;

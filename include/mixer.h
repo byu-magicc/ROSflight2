@@ -37,6 +37,8 @@
 #include <cstdbool>
 #include <cstdint>
 
+#include <sensors.h>
+
 namespace rosflight_firmware
 {
 class ROSflight;
@@ -47,7 +49,6 @@ class Mixer : public ParamListenerInterface
 public:
   static constexpr uint8_t NUM_TOTAL_OUTPUTS = 14;
   static constexpr uint8_t NUM_MIXER_OUTPUTS = 10;
-  float * raw_outputs(void);
 
   enum
   {
@@ -102,7 +103,9 @@ public:
 private:
   ROSflight & RF_;
 
-  float raw_outputs_[NUM_TOTAL_OUTPUTS];
+  RcStruct output_raw_ = {};
+  //float raw_outputs_[NUM_TOTAL_OUTPUTS];
+  float *raw_outputs_ = output_raw_.chan;
   float outputs_[NUM_TOTAL_OUTPUTS];
   aux_command_t aux_command_;
   output_type_t combined_output_type_[NUM_TOTAL_OUTPUTS];
@@ -258,7 +261,8 @@ public:
   void mix_output();
   void param_change_callback(uint16_t param_id) override;
   void set_new_aux_command(aux_command_t new_aux_command);
-  inline const float * get_outputs() const { return raw_outputs_; }
+  float * raw_outputs() { return raw_outputs_; }
+  RcStruct * get_output_raw(void) { return &output_raw_; }
 };
 
 } // namespace rosflight_firmware
