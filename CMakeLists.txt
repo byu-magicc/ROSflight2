@@ -7,6 +7,7 @@
 # to run test:
 #   cmake . -DBOARD_TO_BUILD=test -DCMAKE_BUILD_TYPE=Release
 #   make
+#   ./test/unit_tests
 
 cmake_minimum_required(VERSION 3.8)
 project(rosflight_firmware C CXX ASM)
