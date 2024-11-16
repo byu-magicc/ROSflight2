@@ -131,7 +131,10 @@ void ROSflight::run()
   state_manager_.run();
 
   // Process latest received RC input data
-  if (got.rc) { rc_.run(); }
+  if (rc_.receive()) {
+    comm_manager_.send_rc_raw();
+    rc_.run();
+  }
 
   // Update commands (internal logic tells whether or not we should do anything or not)
   command_manager_.run();

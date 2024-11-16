@@ -54,6 +54,14 @@ void RC::init_rc()
   init_switches();
 }
 
+RcStruct * RC::get_rc(void) { return &rc_; }
+float RC::read_chan(uint8_t chan) { return rc_.chan[chan]; }
+
+bool RC::receive(void)
+{
+  return RF_.board_.rc_read(&rc_);
+}
+
 void RC::param_change_callback(uint16_t param_id)
 {
   switch (param_id) {
@@ -172,7 +180,7 @@ bool RC::check_rc_lost()
   } else {
     // go into failsafe if we get an invalid RC command for any channel
     for (int8_t i = 0; i < RF_.params_.get_param_int(PARAM_RC_NUM_CHANNELS); i++) {
-      float pwm = RF_.sensors_.read_rc_chan(i);
+      float pwm = read_chan(i);
       if (pwm < -0.25 || pwm > 1.25) { failsafe = true; }
     }
   }
@@ -197,8 +205,8 @@ void RC::look_for_arm_disarm_signal()
   if (!switch_mapped(SWITCH_ARM)) {
     if (!RF_.state_manager_.state().armed) { // we are DISARMED
       // if left stick is down and to the right
-      if ((RF_.rc_.stick(STICK_F) < RF_.params_.get_param_float(PARAM_ARM_THRESHOLD))
-          && (RF_.rc_.stick(STICK_Z) > (1.0f - RF_.params_.get_param_float(PARAM_ARM_THRESHOLD)))) {
+      if ((stick(STICK_F) < RF_.params_.get_param_float(PARAM_ARM_THRESHOLD))
+          && (stick(STICK_Z) > (1.0f - RF_.params_.get_param_float(PARAM_ARM_THRESHOLD)))) {
         time_sticks_have_been_in_arming_position_ms += dt;
       } else {
         time_sticks_have_been_in_arming_position_ms = 0;
@@ -208,8 +216,8 @@ void RC::look_for_arm_disarm_signal()
       }
     } else { // we are ARMED
       // if left stick is down and to the left
-      if (RF_.rc_.stick(STICK_F) < RF_.params_.get_param_float(PARAM_ARM_THRESHOLD)
-          && RF_.rc_.stick(STICK_Z) < -(1.0f - RF_.params_.get_param_float(PARAM_ARM_THRESHOLD))) {
+      if (stick(STICK_F) < RF_.params_.get_param_float(PARAM_ARM_THRESHOLD)
+          && stick(STICK_Z) < -(1.0f - RF_.params_.get_param_float(PARAM_ARM_THRESHOLD))) {
         time_sticks_have_been_in_arming_position_ms += dt;
       } else {
         time_sticks_have_been_in_arming_position_ms = 0;
@@ -220,7 +228,7 @@ void RC::look_for_arm_disarm_signal()
       }
     }
   } else { // ARMING WITH SWITCH
-    if (RF_.rc_.switch_on(SWITCH_ARM)) {
+    if (switch_on(SWITCH_ARM)) {
       if (!RF_.state_manager_.state().armed) {
         RF_.state_manager_.set_event(StateManager::EVENT_REQUEST_ARM);
       }
@@ -237,7 +245,7 @@ bool RC::run()
 
   // read and normalize stick values
   for (uint8_t channel = 0; channel < static_cast<uint8_t>(STICKS_COUNT); channel++) {
-    float pwm = RF_.sensors_.read_rc_chan(sticks[channel].channel);
+    float pwm = read_chan(sticks[channel].channel);
     if (sticks[channel].one_sided) { // generally only F is one_sided
       stick_values[channel] = pwm;
     } else {
@@ -248,7 +256,7 @@ bool RC::run()
   // read and interpret switch values
   for (uint8_t channel = 0; channel < static_cast<uint8_t>(SWITCHES_COUNT); channel++) {
     if (switches[channel].mapped) {
-      float pwm = RF_.sensors_.read_rc_chan(switches[channel].channel);
+      float pwm = read_chan(switches[channel].channel);
       if (switches[channel].direction < 0) {
         switch_values[channel] = pwm < 0.2;
       } else {

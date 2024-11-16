@@ -44,16 +44,17 @@ namespace rosflight_firmware
 {
 class ROSflight;
 
-class Estimator : public ParamListenerInterface
-{
-
-public:
   typedef struct //__attribute__((__packed__))
   {
     uint64_t timestamp; // us, time of data read complete
     float q[4];         // quaternions
     float rate[3];
   } AttitudeStruct;
+
+class Estimator : public ParamListenerInterface
+{
+
+public:
 
   struct State
   {

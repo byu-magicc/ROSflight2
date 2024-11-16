@@ -183,7 +183,7 @@ void CommManager::send_output_raw(void)
   comm_link_.send_output_raw(sysid_, *RF_.mixer_.get_output_raw());
 }
 
-void CommManager::send_rc_raw(void) { comm_link_.send_rc_raw(sysid_, *RF_.sensors_.get_rc_()); }
+void CommManager::send_rc_raw(void) { comm_link_.send_rc_raw(sysid_, *RF_.rc_.get_rc()); }
 
 void CommManager::send_diff_pressure(void)
 {
@@ -259,9 +259,6 @@ void CommManager::transmit(got_flags got)
   if (got.battery) { send_battery_status(); }
   // GPS data (GNSS Packed)
   if (got.gnss) { send_gnss(); }
-  // GPS full data (not needed)
-  //if (got.gnss_full) { send_gnss_full(); }
-  if (got.rc) { send_rc_raw(); }
 
   {
     static uint64_t next_heartbeat = 0, next_status = 0;

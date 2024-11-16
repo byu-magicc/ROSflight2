@@ -169,9 +169,6 @@ got_flags Sensors::run()
   // BATTERY_MONITOR:
   got.battery = rf_.board_.battery_read(&battery_);
 
-  // RC
-  got.rc = rf_.board_.rc_read(&rc_);
-
   return got;
 }
 

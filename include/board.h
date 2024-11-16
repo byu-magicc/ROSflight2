@@ -39,6 +39,7 @@
 #include <cstdint>
 
 #include <sensors.h>
+#include <rc.h>
 
 namespace rosflight_firmware
 {

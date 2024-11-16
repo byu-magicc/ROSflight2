@@ -41,6 +41,17 @@ namespace rosflight_firmware
 {
 class ROSflight;
 
+// 16 analog + 8 digital MUST BE > 14 (Mavlink message size is hardware to 14)
+#define RC_STRUCT_CHANNELS  24
+typedef struct //__attribute__((packed))
+{
+  uint64_t timestamp; // us, time of data read complete
+  uint8_t nChan;
+  float chan[RC_STRUCT_CHANNELS];
+  bool frameLost;
+  bool failsafeActivated;
+} RcStruct;
+
 class RC : public ParamListenerInterface
 {
 public:
@@ -72,7 +83,13 @@ public:
   bool new_command();
   void param_change_callback(uint16_t param_id) override;
 
+  RcStruct * get_rc(void);
+  float read_chan(uint8_t chan);
+  bool receive(void);
+
 private:
+  RcStruct rc_={};
+
   ROSflight & RF_;
 
   typedef struct

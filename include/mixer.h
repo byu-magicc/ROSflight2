@@ -38,10 +38,13 @@
 #include <cstdint>
 
 #include <sensors.h>
+#include <rc.h>
 
 namespace rosflight_firmware
 {
 class ROSflight;
+
+typedef RcStruct MixerStruct;
 
 class Mixer : public ParamListenerInterface
 {
@@ -103,7 +106,8 @@ public:
 private:
   ROSflight & RF_;
 
-  RcStruct output_raw_ = {};
+  MixerStruct output_raw_ = {};
+
   //float raw_outputs_[NUM_TOTAL_OUTPUTS];
   float *raw_outputs_ = output_raw_.chan;
   float outputs_[NUM_TOTAL_OUTPUTS];
@@ -262,7 +266,7 @@ public:
   void param_change_callback(uint16_t param_id) override;
   void set_new_aux_command(aux_command_t new_aux_command);
   float * raw_outputs() { return raw_outputs_; }
-  RcStruct * get_output_raw(void) { return &output_raw_; }
+  MixerStruct * get_output_raw(void) { return &output_raw_; }
 };
 
 } // namespace rosflight_firmware
