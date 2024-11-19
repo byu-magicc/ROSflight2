@@ -32,7 +32,7 @@ public:
     uint16_t rc_values[8];
     for (int i = 0; i < 8; i++) { rc_values[i] = 1500; }
     rc_values[2] = 1000;
-    board.set_rc(rc_values);
+    rf.rc_.fake_rx(rc_values,8,false,false);
 
     stepFirmware(100000);
   }
@@ -291,7 +291,8 @@ TEST_F(StateMachineTest, ArmIfThrottleLow)
   uint16_t rc_values[8];
   for (int i = 0; i < 8; i++) { rc_values[i] = (i > 3) ? 1000 : 1500; }
   rc_values[2] = 1000;
-  board.set_rc(rc_values);
+  rf.rc_.fake_rx(rc_values,8,false,false);
+ 
   step_firmware(rf, board, 100);
   rf.state_manager_.set_event(StateManager::EVENT_REQUEST_ARM);
   EXPECT_EQ(true, rf.state_manager_.state().armed);
@@ -303,7 +304,8 @@ TEST_F(StateMachineTest, ArmIfThrottleHighWithMinThrottle)
   uint16_t rc_values[8];
   for (int i = 0; i < 8; i++) { rc_values[i] = (i > 3) ? 1000 : 1500; }
   rc_values[2] = 1500;
-  board.set_rc(rc_values);
+  rf.rc_.fake_rx(rc_values,8,false,false);
+  
   step_firmware(rf, board, 100000);
 
   rf.state_manager_.set_event(StateManager::EVENT_REQUEST_ARM);
@@ -317,7 +319,8 @@ TEST_F(StateMachineTest, DontArmIfThrottleHighWithoutMinThrottle)
   uint16_t rc_values[8];
   for (int i = 0; i < 8; i++) { rc_values[i] = (i > 3) ? 1000 : 1500; }
   rc_values[2] = 1500;
-  board.set_rc(rc_values);
+  rf.rc_.fake_rx(rc_values,8,false,false);
+  
   step_firmware(rf, board, 100000);
 
   rf.state_manager_.set_event(StateManager::EVENT_REQUEST_ARM);

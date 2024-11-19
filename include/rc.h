@@ -87,6 +87,9 @@ public:
   float read_chan(uint8_t chan);
   bool receive(void);
 
+  // _FAKE_ RC receive. Use set_chan for testing only!
+  uint16_t fake_rx(uint16_t *chan, uint16_t len, bool lost, bool failsafe);
+
 private:
   RcStruct rc_={};
 

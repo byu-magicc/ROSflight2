@@ -36,15 +36,8 @@
 
 namespace rosflight_firmware
 {
-void testBoard::set_rc(uint16_t * values)
-{
-  for (int i = 0; i < 8; i++) { rc_values[i] = values[i]; }
-  new_rc_ = true;
-}
 
 void testBoard::set_time(uint64_t time_us) { time_us_ = time_us; }
-
-void testBoard::set_pwm_lost(bool lost) { rc_lost_ = lost; }
 
 void testBoard::set_imu(float * acc, float * gyro, uint64_t time_us)
 {
@@ -130,12 +123,9 @@ void testBoard::battery_current_set_multiplier(double multiplier) {}
 // PWM
 // TODO make these deal in normalized (-1 to 1 or 0 to 1) values (not pwm-specific)
 void testBoard::rc_init(rc_type_t rc_type) {(void)rc_type;}
-bool testBoard::rc_lost() { return rc_lost_; }
-
 bool testBoard::rc_read(rosflight_firmware::RcStruct * rc_struct)
 {
-  // ???? what goes here ???
-  return true;
+  return false;
 }
 void testBoard::pwm_write(float * value, uint32_t channels) {}
 void testBoard::pwm_init(const float * rate, uint32_t channels) {}

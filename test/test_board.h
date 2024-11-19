@@ -43,7 +43,6 @@ private:
   uint16_t rc_values[8] = {1500, 1500, 1000, 1500, 1500, 1500, 1500, 1500};
   bool new_rc_ = false;
   uint64_t time_us_ = 0;
-  bool rc_lost_ = false;
   float acc_[3] = {0, 0, 0};
   float gyro_[3] = {0, 0, 0};
   bool new_imu_ = false;
@@ -95,7 +94,6 @@ public:
 
   // RC
   void rc_init(rc_type_t rc_type) override;
-  bool rc_lost() override;
   bool rc_read(rosflight_firmware::RcStruct * rc) override;
 
   // PWM
@@ -125,7 +123,6 @@ public:
   void backup_memory_clear();
 
   void set_imu(float * acc, float * gyro, uint64_t time_us);
-  void set_rc(uint16_t * values);
   void set_time(uint64_t time_us);
   void set_pwm_lost(bool lost);
 };

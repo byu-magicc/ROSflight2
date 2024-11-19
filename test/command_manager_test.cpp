@@ -27,6 +27,7 @@ public:
   ROSflight rf;
   float last_set_rc = 0;
 
+  bool rc_lost=false;
   uint16_t rc_values[8];
   float max_roll, max_pitch, max_yawrate;
 
@@ -44,8 +45,7 @@ public:
   void SetUp() override
   {
     rf.init();
-    rf.state_manager_.clear_error(
-      rf.state_manager_.state().error_codes); // Clear All Errors to Start
+    rf.state_manager_.clear_error(rf.state_manager_.state().error_codes); // Clear All Errors to Start
     rf.params_.set_param_int(PARAM_CALIBRATE_GYRO_ON_ARM, false);
 
     for (int i = 0; i < 8; i++) { rc_values[i] = 1500; }
@@ -72,7 +72,7 @@ public:
     while (board.clock_micros() < start_time_us + us) {
       if (board.clock_millis() > last_set_rc + 20) {
         last_set_rc = board.clock_millis();
-        board.set_rc(rc_values);
+        rf.rc_.fake_rx(rc_values,8, rc_lost, false); // the false is for failsafe.
       }
       board.set_imu(dummy_acc, dummy_gyro, board.clock_micros() + 1000);
       rf.run();
@@ -240,7 +240,8 @@ TEST_F(CommandManagerTest, RCOutput)
 
 TEST_F(CommandManagerTest, LoseRCDisarmed)
 {
-  board.set_pwm_lost(true);
+  
+  rc_lost = true;
   stepFirmware(50000);
 
   control_t output = rf.command_manager_.combined_control();
@@ -262,9 +263,10 @@ TEST_F(CommandManagerTest, LoseRCDisarmed)
 
 TEST_F(CommandManagerTest, RegainRCDisarmed)
 {
-  board.set_pwm_lost(true);
+  rc_lost = true;
   stepFirmware(40000);
-  board.set_pwm_lost(false);
+  
+  rc_lost = false;
   stepFirmware(40000);
 
   EXPECT_EQ(rf.state_manager_.state().error, false);
@@ -277,7 +279,8 @@ TEST_F(CommandManagerTest, LoseRCArmed)
 
   rf.state_manager_.set_event(StateManager::EVENT_REQUEST_ARM);
   EXPECT_EQ(rf.state_manager_.state().armed, true);
-  board.set_pwm_lost(true);
+  
+  rc_lost = true;
   stepFirmware(20000);
 
   control_t output = rf.command_manager_.combined_control();
@@ -302,9 +305,11 @@ TEST_F(CommandManagerTest, RegainRCArmed)
   stepFirmware(50000);
   rf.state_manager_.set_event(StateManager::EVENT_REQUEST_ARM);
 
-  board.set_pwm_lost(true);
+  
+  rc_lost = true;
   stepFirmware(20000);
-  board.set_pwm_lost(false);
+  
+  rc_lost = false;
   stepFirmware(20000);
 
   EXPECT_EQ(rf.state_manager_.state().armed, true);
