@@ -32,7 +32,7 @@
 #ifndef ROSFLIGHT_FIRMWARE_COMM_MANAGER_H
 #define ROSFLIGHT_FIRMWARE_COMM_MANAGER_H
 
-#include "interfaces/comm_link.h"
+#include "interface/comm_link.h"
 #include "param_listener.h"
 
 #include <stdarg.h>

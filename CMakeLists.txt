@@ -13,8 +13,8 @@ cmake_minimum_required(VERSION 3.8)
 project(rosflight_firmware C CXX ASM)
 
 set(CMAKE_CXX_STANDARD 17)
-set(CMAKE_C_STANDARD 11)
-
+set(CMAKE_C_STANDARD 11) 
+		
 if(NOT CMAKE_BUILD_TYPE)
     set(CMAKE_BUILD_TYPE "Release")
 endif()
@@ -41,7 +41,7 @@ endif()
 
 include_directories(
     include
-    include/interfaces
+    include/interface
     lib
     comms/mavlink
     comms/mavlink/v1.0

@@ -42,7 +42,7 @@
 #include "v1.0/rosflight/mavlink.h"
 #pragma GCC diagnostic pop
 
-#include "interfaces/comm_link.h"
+#include "interface/comm_link.h"
 
 #include "board.h"
 
