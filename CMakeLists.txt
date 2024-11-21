@@ -41,7 +41,7 @@ endif()
 
 include_directories(
     include
-    include/interface
+    include/interfaces
     lib
     comms/mavlink
     comms/mavlink/v1.0
