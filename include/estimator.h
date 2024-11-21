@@ -32,7 +32,7 @@
 #ifndef ROSFLIGHT_FIRMWARE_ESTIMATOR_H
 #define ROSFLIGHT_FIRMWARE_ESTIMATOR_H
 
-#include "interface/param_listener.h"
+#include "param_listener.h"
 
 #include <turbomath/turbomath.h>
 
@@ -40,16 +40,12 @@
 #include <cstdbool>
 #include <cstdint>
 
+#include <rosflight_structs.h>
+
 namespace rosflight_firmware
 {
 class ROSflight;
 
-  typedef struct //__attribute__((__packed__))
-  {
-    uint64_t timestamp; // us, time of data read complete
-    float q[4];         // quaternions
-    float rate[3];
-  } AttitudeStruct;
 
 class Estimator : public ParamListenerInterface
 {

@@ -32,25 +32,16 @@
 #ifndef ROSFLIGHT_FIRMWARE_RC_H
 #define ROSFLIGHT_FIRMWARE_RC_H
 
-#include "interface/param_listener.h"
+#include "param_listener.h"
 
 #include <cstdbool>
 #include <cstdint>
 
+#include <rosflight_structs.h>
+
 namespace rosflight_firmware
 {
 class ROSflight;
-
-// 16 analog + 8 digital MUST BE > 14 (Mavlink message size is hardware to 14)
-#define RC_STRUCT_CHANNELS  24
-typedef struct //__attribute__((packed))
-{
-  uint64_t timestamp; // us, time of data read complete
-  uint8_t nChan;
-  float chan[RC_STRUCT_CHANNELS];
-  bool frameLost;
-  bool failsafeActivated;
-} RcStruct;
 
 class RC : public ParamListenerInterface
 {

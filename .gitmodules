@@ -4,3 +4,6 @@
 [submodule "boards/varmint_h7"]
 	path = boards/varmint_h7
 	url = https://github.com/rosflight/varmint_h7.git
+[submodule "include/interfaces"]
+	path = include/interface
+	url = git@github.com:rosflight/rosflight_firmware-board-common.git

@@ -31,7 +31,7 @@
 
 #include "rosflight.h"
 
-#include "interface/param_listener.h"
+#include "param_listener.h"
 
 namespace rosflight_firmware
 {

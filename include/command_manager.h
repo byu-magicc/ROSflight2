@@ -32,7 +32,7 @@
 #ifndef ROSFLIGHT_FIRMWARE_COMMAND_MANAGER_H
 #define ROSFLIGHT_FIRMWARE_COMMAND_MANAGER_H
 
-#include "interface/param_listener.h"
+#include "param_listener.h"
 
 #include "rc.h"
 

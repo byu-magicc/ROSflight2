@@ -32,7 +32,7 @@
 #ifndef ROSFLIGHT_FIRMWARE_MIXER_H
 #define ROSFLIGHT_FIRMWARE_MIXER_H
 
-#include "interface/param_listener.h"
+#include "param_listener.h"
 
 #include <cstdbool>
 #include <cstdint>
@@ -113,6 +113,7 @@ private:
   float outputs_[NUM_TOTAL_OUTPUTS];
   aux_command_t aux_command_;
   output_type_t combined_output_type_[NUM_TOTAL_OUTPUTS];
+
 
   // clang-format off
 

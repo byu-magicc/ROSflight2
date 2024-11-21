@@ -33,7 +33,7 @@
 #define ROSFLIGHT_FIRMWARE_COMM_MANAGER_H
 
 #include "interface/comm_link.h"
-#include "interface/param_listener.h"
+#include "param_listener.h"
 
 #include <stdarg.h>
 #include <stdio.h>

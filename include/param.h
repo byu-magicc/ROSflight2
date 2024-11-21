@@ -47,7 +47,7 @@
 // #pragma message( "GIT_VERSION_HASH: " STRINGIFY(GIT_VERSION_HASH))
 // #pragma message( "GIT_VERSION_STRING: " GIT_VERSION_STRING)
 
-#include "interface/param_listener.h"
+#include "param_listener.h"
 
 #include <cstddef>
 #include <cstdint>
