@@ -37,8 +37,8 @@
 #include <cstdbool>
 #include <cstdint>
 
-#include <sensors.h>
-#include <rc.h>
+#include "sensors.h"
+#include "rc.h"
 
 namespace rosflight_firmware
 {

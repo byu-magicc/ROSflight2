@@ -35,8 +35,8 @@
  ******************************************************************************
  **/
 
-#include <mavlink.h>
-#include <rosflight.h>
+#include "mavlink.h"
+#include "rosflight.h"
 
 #ifndef BUILD_TEST_BOARD // Skip main function for gtest
 

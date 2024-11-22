@@ -35,15 +35,15 @@
 
 #include "param_listener.h"
 
-#include <turbomath/turbomath.h>
+#include "turbomath/turbomath.h"
 
 #include <cstdbool>
 #include <cstdint>
 #include <cstring>
 
-#include <estimator.h>
+#include "estimator.h"
 
-#include <rosflight_structs.h>
+#include "rosflight_structs.h"
 
 namespace rosflight_firmware
 {

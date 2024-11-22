@@ -36,7 +36,7 @@
 
 #include "rosflight.h"
 
-#include <turbomath/turbomath.h>
+#include "turbomath/turbomath.h"
 
 #include <cmath>
 #include <cstdbool>

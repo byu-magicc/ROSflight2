@@ -321,7 +321,7 @@ TEST_F(StateMachineTest, DontArmIfThrottleHighWithoutMinThrottle)
   rc_values[2] = 1500;
   rf.rc_.fake_rx(rc_values,8,false,false);
   
-  step_firmware(rf, board, 100000);
+    step_firmware(rf, board, 100000);
 
   rf.state_manager_.set_event(StateManager::EVENT_REQUEST_ARM);
   step_firmware(rf, board, 1200000);

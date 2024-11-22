@@ -37,7 +37,7 @@
 #include "command_manager.h"
 #include "estimator.h"
 
-#include <turbomath/turbomath.h>
+#include "turbomath/turbomath.h"
 
 #include <cstdbool>
 #include <cstdint>

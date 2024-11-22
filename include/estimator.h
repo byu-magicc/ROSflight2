@@ -34,13 +34,13 @@
 
 #include "param_listener.h"
 
-#include <turbomath/turbomath.h>
+#include "turbomath/turbomath.h"
 
 #include <cmath>
 #include <cstdbool>
 #include <cstdint>
 
-#include <rosflight_structs.h>
+#include "rosflight_structs.h"
 
 namespace rosflight_firmware
 {
