@@ -32,8 +32,6 @@
 #ifndef ROSFLIGHT_FIRMWARE_ESTIMATOR_H
 #define ROSFLIGHT_FIRMWARE_ESTIMATOR_H
 
-#include "param_listener.h"
-
 #include "turbomath/turbomath.h"
 
 #include <cmath>
@@ -47,7 +45,7 @@ namespace rosflight_firmware
 class ROSflight;
 
 
-class Estimator : public ParamListenerInterface
+class Estimator
 {
 
 public:
@@ -73,7 +71,7 @@ public:
   inline const turbomath::Vector & gyroLPF() { return gyro_LPF_; }
 
   void init();
-  void param_change_callback(uint16_t param_id) override;
+  void param_change_callback(uint16_t param_id);
   void run();
   void reset_state();
   void reset_adaptive_bias();

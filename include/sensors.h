@@ -33,7 +33,6 @@
 #ifndef ROSFLIGHT_FIRMWARE_SENSORS_H
 #define ROSFLIGHT_FIRMWARE_SENSORS_H
 
-#include "param_listener.h"
 
 #include "turbomath/turbomath.h"
 
@@ -49,7 +48,7 @@ namespace rosflight_firmware
 {
 class ROSflight;
 
-class Sensors : public ParamListenerInterface
+class Sensors
 {
 public:
   PressureStruct * get_diff_pressure(void) { return &diff_pressure_; }
@@ -64,7 +63,7 @@ public:
 
   void init();
   got_flags run();
-  void param_change_callback(uint16_t param_id) override;
+  void param_change_callback(uint16_t param_id);
 
   // Calibration Functions
   bool start_imu_calibration(void);

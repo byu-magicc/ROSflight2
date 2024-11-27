@@ -31,8 +31,6 @@
 
 #include "rosflight.h"
 
-#include "param_listener.h"
-
 namespace rosflight_firmware
 {
 ROSflight::ROSflight(Board & board, CommLinkInterface & comm_link)
@@ -47,7 +45,6 @@ ROSflight::ROSflight(Board & board, CommLinkInterface & comm_link)
     , sensors_(*this)
     , state_manager_(*this)
 {
-  params_.set_listeners(param_listeners_, num_param_listeners_);
 }
 
 // Initialization Routine

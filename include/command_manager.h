@@ -32,8 +32,6 @@
 #ifndef ROSFLIGHT_FIRMWARE_COMMAND_MANAGER_H
 #define ROSFLIGHT_FIRMWARE_COMMAND_MANAGER_H
 
-#include "param_listener.h"
-
 #include "rc.h"
 
 #include <cstdbool>
@@ -67,7 +65,7 @@ typedef struct
   control_channel_t F;
 } control_t;
 
-class CommandManager : public ParamListenerInterface
+class CommandManager
 {
 private:
   typedef struct
@@ -152,7 +150,7 @@ private:
   bool stick_deviated(MuxChannel channel);
 
 public:
-  void param_change_callback(uint16_t param_id) override;
+  void param_change_callback(uint16_t param_id);
   CommandManager(ROSflight & _rf);
   void init();
   bool run();

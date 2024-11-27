@@ -43,8 +43,6 @@ namespace rosflight_firmware
 {
 Params::Params(ROSflight & _rf)
     : RF_(_rf)
-    , listeners_(nullptr)
-    , num_listeners_(0)
 {}
 
 // local function definitions
@@ -265,11 +263,6 @@ void Params::set_defaults(void)
 }
 // clang-format on
 
-void Params::set_listeners(ParamListenerInterface * const listeners[], size_t num_listeners)
-{
-  listeners_ = listeners;
-  num_listeners_ = num_listeners;
-}
 
 bool Params::read(void)
 {
@@ -300,10 +293,13 @@ bool Params::write(void)
 
 void Params::change_callback(uint16_t id)
 {
-  // call the callback function for all listeners
-  if (listeners_ != nullptr) {
-    for (size_t i = 0; i < num_listeners_; i++) { listeners_[i]->param_change_callback(id); }
-  }
+	RF_.comm_manager_.param_change_callback(id);
+	RF_.command_manager_.param_change_callback(id);
+	RF_.controller_.param_change_callback(id);
+	RF_.estimator_.param_change_callback(id); //<- does nothing
+	RF_.mixer_.param_change_callback(id);
+	RF_.rc_.param_change_callback(id);
+	RF_.sensors_.param_change_callback(id);
 }
 
 uint16_t Params::lookup_param_id(const char name[PARAMS_NAME_LENGTH])
@@ -347,18 +343,5 @@ bool Params::set_param_float(uint16_t id, float value)
     return true;
   }
   return false;
-}
-
-bool Params::set_param_by_name_int(const char name[PARAMS_NAME_LENGTH], int32_t value)
-{
-  uint16_t id = lookup_param_id(name);
-  return set_param_int(id, value);
-}
-
-bool Params::set_param_by_name_float(const char name[PARAMS_NAME_LENGTH], float value)
-{
-  param_value_t tmp;
-  tmp.fvalue = value;
-  return set_param_by_name_int(name, tmp.ivalue);
 }
 } // namespace rosflight_firmware

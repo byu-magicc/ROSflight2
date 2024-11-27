@@ -32,8 +32,6 @@
 #ifndef ROSFLIGHT_FIRMWARE_MIXER_H
 #define ROSFLIGHT_FIRMWARE_MIXER_H
 
-#include "param_listener.h"
-
 #include <cstdbool>
 #include <cstdint>
 
@@ -46,7 +44,7 @@ class ROSflight;
 
 typedef RcStruct MixerStruct;
 
-class Mixer : public ParamListenerInterface
+class Mixer
 {
 
 public:
@@ -264,7 +262,7 @@ public:
   void init_PWM();
   void init_mixing();
   void mix_output();
-  void param_change_callback(uint16_t param_id) override;
+  void param_change_callback(uint16_t param_id);
   void set_new_aux_command(aux_command_t new_aux_command);
   float * raw_outputs() { return raw_outputs_; }
   MixerStruct * get_output_raw(void) { return &output_raw_; }

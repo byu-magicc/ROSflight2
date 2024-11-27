@@ -32,8 +32,6 @@
 #ifndef ROSFLIGHT_FIRMWARE_RC_H
 #define ROSFLIGHT_FIRMWARE_RC_H
 
-#include "param_listener.h"
-
 #include <cstdbool>
 #include <cstdint>
 
@@ -43,7 +41,7 @@ namespace rosflight_firmware
 {
 class ROSflight;
 
-class RC : public ParamListenerInterface
+class RC
 {
 public:
   enum Stick
@@ -72,7 +70,7 @@ public:
   bool switch_mapped(Switch channel);
   bool run();
   bool new_command();
-  void param_change_callback(uint16_t param_id) override;
+  void param_change_callback(uint16_t param_id);
 
   RcStruct * get_rc(void);
   float read_chan(uint8_t chan);

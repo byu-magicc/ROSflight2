@@ -33,7 +33,6 @@
 #define ROSFLIGHT_FIRMWARE_ROSFLIGHT_H
 
 #include "interface/comm_link.h"
-#include "param_listener.h"
 
 #include "board.h"
 #include "comm_manager.h"
@@ -82,10 +81,6 @@ public:
 
   uint32_t get_loop_time_us();
 
-private:
-  static constexpr size_t num_param_listeners_ = 7;
-  ParamListenerInterface * const param_listeners_[num_param_listeners_] = {
-    &comm_manager_, &command_manager_, &controller_, &estimator_, &mixer_, &rc_, &sensors_};
 };
 
 } // namespace rosflight_firmware

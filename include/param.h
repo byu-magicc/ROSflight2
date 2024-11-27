@@ -47,8 +47,6 @@
 // #pragma message( "GIT_VERSION_HASH: " STRINGIFY(GIT_VERSION_HASH))
 // #pragma message( "GIT_VERSION_STRING: " GIT_VERSION_STRING)
 
-#include "param_listener.h"
-
 #include <cstddef>
 #include <cstdint>
 
@@ -260,9 +258,6 @@ private:
   void init_param_float(uint16_t id, const char name[PARAMS_NAME_LENGTH], float value);
   uint8_t compute_checksum(void);
 
-  ParamListenerInterface * const * listeners_;
-  size_t num_listeners_;
-
 public:
   Params(ROSflight & _rf);
 
@@ -277,14 +272,6 @@ public:
    * @brief Set all parameters to default values
    */
   void set_defaults(void);
-
-  /**
-   * @brief Specify listeners for parameter changes
-   * @param listeners An array of pointers to objects that implement the ParamListenerInterface
-   * interface
-   * @param num_listeners The length of the array passed as the listeners parameter
-   */
-  void set_listeners(ParamListenerInterface * const listeners[], size_t num_listeners);
 
   /**
    * @brief Read parameter values from non-volatile memory
@@ -358,22 +345,22 @@ public:
    */
   bool set_param_float(uint16_t id, float value);
 
-  /**
-   * @brief Sets the value of a parameter by name and calls the parameter change callback
-   * @param name The name of the parameter
-   * @param value The new value
-   * @return True if a parameter value was changed, false otherwise
-   */
-  bool set_param_by_name_int(const char name[PARAMS_NAME_LENGTH], int32_t value);
-
-  /**
-   * @brief Sets the value of a floating point parameter by name and calls the parameter change
-   * callback
-   * @param name The name of the parameter
-   * @param value The new value
-   * @return True if a parameter value was changed, false otherwise
-   */
-  bool set_param_by_name_float(const char name[PARAMS_NAME_LENGTH], float value);
+//  /**
+//   * @brief Sets the value of a parameter by name and calls the parameter change callback
+//   * @param name The name of the parameter
+//   * @param value The new value
+//   * @return True if a parameter value was changed, false otherwise
+//   */
+//  bool set_param_by_name_int(const char name[PARAMS_NAME_LENGTH], int32_t value);
+//
+//  /**
+//   * @brief Sets the value of a floating point parameter by name and calls the parameter change
+//   * callback
+//   * @param name The name of the parameter
+//   * @param value The new value
+//   * @return True if a parameter value was changed, false otherwise
+//   */
+//  bool set_param_by_name_float(const char name[PARAMS_NAME_LENGTH], float value);
 };
 
 } // namespace rosflight_firmware

@@ -32,8 +32,6 @@
 #ifndef ROSFLIGHT_FIRMWARE_CONTROLLER_H
 #define ROSFLIGHT_FIRMWARE_CONTROLLER_H
 
-#include "param_listener.h"
-
 #include "command_manager.h"
 #include "estimator.h"
 
@@ -46,7 +44,7 @@ namespace rosflight_firmware
 {
 class ROSflight;
 
-class Controller : public ParamListenerInterface
+class Controller
 {
 public:
   struct Output
@@ -65,7 +63,7 @@ public:
   void run();
 
   void calculate_equilbrium_torque_from_rc();
-  void param_change_callback(uint16_t param_id) override;
+  void param_change_callback(uint16_t param_id);
 
 private:
   class PID
