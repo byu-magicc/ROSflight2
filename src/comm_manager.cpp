@@ -216,15 +216,15 @@ void CommManager::send_backup_data(const StateManager::BackupData & backup_data)
 
 void CommManager::send_gnss(void) { comm_link_.send_gnss(sysid_, *RF_.sensors_.get_gnss()); }
 
-void CommManager::send_named_value_int(const char * const name, int32_t value)
-{
-  comm_link_.send_named_value_int(sysid_, RF_.board_.clock_micros(), name, value);
-}
-
-void CommManager::send_named_value_float(const char * const name, float value)
-{
-  comm_link_.send_named_value_float(sysid_, RF_.board_.clock_micros(), name, value);
-}
+//void CommManager::send_named_value_int(const char * const name, int32_t value)
+//{
+//  comm_link_.send_named_value_int(sysid_, RF_.board_.clock_micros(), name, value);
+//}
+//
+//void CommManager::send_named_value_float(const char * const name, float value)
+//{
+//  comm_link_.send_named_value_float(sysid_, RF_.board_.clock_micros(), name, value);
+//}
 
 void CommManager::send_next_param(void)
 {

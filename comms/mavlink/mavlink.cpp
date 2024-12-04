@@ -377,23 +377,23 @@ void Mavlink::send_mag(uint8_t system_id, const MagStruct & mag)
   send_message(msg);
 }
 
-void Mavlink::send_named_value_int(uint8_t system_id, uint64_t timestamp_us,
-                                   const char * const name, int32_t value)
-{
-  uint32_t timestamp_ms = timestamp_us / 1000;
-  mavlink_message_t msg;
-  mavlink_msg_named_value_int_pack(system_id, compid_, &msg, timestamp_ms, name, value);
-  send_message(msg);
-}
-
-void Mavlink::send_named_value_float(uint8_t system_id, uint64_t timestamp_us,
-                                     const char * const name, float value)
-{
-  uint32_t timestamp_ms = timestamp_us / 1000;
-  mavlink_message_t msg;
-  mavlink_msg_named_value_float_pack(system_id, compid_, &msg, timestamp_ms, name, value);
-  send_message(msg);
-}
+//void Mavlink::send_named_value_int(uint8_t system_id, uint64_t timestamp_us,
+//                                   const char * const name, int32_t value)
+//{
+//  uint32_t timestamp_ms = timestamp_us / 1000;
+//  mavlink_message_t msg;
+//  mavlink_msg_named_value_int_pack(system_id, compid_, &msg, timestamp_ms, name, value);
+//  send_message(msg);
+//}
+//
+//void Mavlink::send_named_value_float(uint8_t system_id, uint64_t timestamp_us,
+//                                     const char * const name, float value)
+//{
+//  uint32_t timestamp_ms = timestamp_us / 1000;
+//  mavlink_message_t msg;
+//  mavlink_msg_named_value_float_pack(system_id, compid_, &msg, timestamp_ms, name, value);
+//  send_message(msg);
+//}
 
 void Mavlink::send_output_raw(uint8_t system_id, const RcStruct & raw)
 {

@@ -131,8 +131,8 @@ private:
   void send_gnss(void);
   void send_gnss_full(void);
   void send_rosflignt_cmd_ack(void);
-  void send_named_value_int(const char * const name, int32_t value);
-  void send_named_value_float(const char * const name, float value);
+//  void send_named_value_int(const char * const name, int32_t value);
+//  void send_named_value_float(const char * const name, float value);
 
   void send_next_param(void);
 

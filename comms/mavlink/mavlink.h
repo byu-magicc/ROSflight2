@@ -76,11 +76,11 @@ public:
 
   void send_mag(uint8_t system_id, const MagStruct & mag) override;
 
-  void send_named_value_int(uint8_t system_id, uint64_t timestamp_us, const char * const name,
-                            int32_t value) override;
-
-  void send_named_value_float(uint8_t system_id, uint64_t imestamp_us, const char * const name,
-                              float value) override;
+//  void send_named_value_int(uint8_t system_id, uint64_t timestamp_us, const char * const name,
+//                            int32_t value) override;
+//
+//  void send_named_value_float(uint8_t system_id, uint64_t imestamp_us, const char * const name,
+//                              float value) override;
 
   void send_output_raw(uint8_t system_id, const RcStruct & raw) override;
 
