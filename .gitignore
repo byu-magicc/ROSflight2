@@ -17,7 +17,6 @@
 /site/
 .idea/
 cmake-build*
-CMakeFiles/
 *.map
 scripts/parameter-descriptions.md
 
