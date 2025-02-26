@@ -35,8 +35,8 @@
 #include <cstdbool>
 #include <cstdint>
 
-#include "sensors.h"
 #include "rc.h"
+#include "sensors.h"
 
 namespace rosflight_firmware
 {
@@ -107,11 +107,10 @@ private:
   MixerStruct output_raw_ = {};
 
   //float raw_outputs_[NUM_TOTAL_OUTPUTS];
-  float *raw_outputs_ = output_raw_.chan;
+  float * raw_outputs_ = output_raw_.chan;
   float outputs_[NUM_TOTAL_OUTPUTS];
   aux_command_t aux_command_;
   output_type_t combined_output_type_[NUM_TOTAL_OUTPUTS];
-
 
   // clang-format off
 

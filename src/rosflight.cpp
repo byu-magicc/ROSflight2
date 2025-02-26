@@ -44,8 +44,7 @@ ROSflight::ROSflight(Board & board, CommLinkInterface & comm_link)
     , rc_(*this)
     , sensors_(*this)
     , state_manager_(*this)
-{
-}
+{}
 
 // Initialization Routine
 void ROSflight::init()

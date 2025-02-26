@@ -190,10 +190,7 @@ void CommManager::send_diff_pressure(void)
   comm_link_.send_diff_pressure(*RF_.sensors_.get_diff_pressure());
 }
 
-void CommManager::send_baro(void)
-{
-  comm_link_.send_baro(*RF_.sensors_.get_baro());
-}
+void CommManager::send_baro(void) { comm_link_.send_baro(*RF_.sensors_.get_baro()); }
 
 void CommManager::send_sonar(void) { comm_link_.send_sonar(*RF_.sensors_.get_sonar()); }
 
@@ -407,8 +404,7 @@ void CommManager::receive_msg_rosflight_cmd(CommLinkInterface::CommMessage * mes
   CommLinkInterface::RosflightCmdResponse response =
     cast_in_range(result, CommLinkInterface::RosflightCmdResponse);
 
-  comm_link_.send_command_ack(RF_.board_.clock_micros(), message->rosflight_cmd_.command,
-                              response);
+  comm_link_.send_command_ack(RF_.board_.clock_micros(), message->rosflight_cmd_.command, response);
 
   if (reboot_flag || reboot_to_bootloader_flag) {
     RF_.board_.clock_delay(20);

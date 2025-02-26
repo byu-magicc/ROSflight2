@@ -104,27 +104,44 @@ void testBoard::backup_memory_write(const void * src, size_t len)
 void testBoard::backup_memory_clear(size_t len) { memset(backup_memory_, 0, len); }
 void testBoard::backup_memory_clear() { backup_memory_clear(BACKUP_MEMORY_SIZE); }
 
-bool testBoard::mag_read(rosflight_firmware::MagStruct * mag) { (void)mag; return false; }
+bool testBoard::mag_read(rosflight_firmware::MagStruct * mag)
+{
+  (void) mag;
+  return false;
+}
 
-bool testBoard::baro_read(rosflight_firmware::PressureStruct * baro) { (void)baro; return false; }
+bool testBoard::baro_read(rosflight_firmware::PressureStruct * baro)
+{
+  (void) baro;
+  return false;
+}
 
-bool testBoard::diff_pressure_read(rosflight_firmware::PressureStruct * diff_pressure) { (void)diff_pressure; return false; }
+bool testBoard::diff_pressure_read(rosflight_firmware::PressureStruct * diff_pressure)
+{
+  (void) diff_pressure;
+  return false;
+}
 
-bool testBoard::sonar_read(rosflight_firmware::RangeStruct * sonar) { (void) sonar; return false; }
+bool testBoard::sonar_read(rosflight_firmware::RangeStruct * sonar)
+{
+  (void) sonar;
+  return false;
+}
 
 bool testBoard::gnss_read(rosflight_firmware::GnssStruct * gnss) { return false; }
 
-bool testBoard::battery_read(rosflight_firmware::BatteryStruct * batt) { (void)batt; return false; }
+bool testBoard::battery_read(rosflight_firmware::BatteryStruct * batt)
+{
+  (void) batt;
+  return false;
+}
 void testBoard::battery_voltage_set_multiplier(double multiplier) {}
 void testBoard::battery_current_set_multiplier(double multiplier) {}
 
 // PWM
 // TODO make these deal in normalized (-1 to 1 or 0 to 1) values (not pwm-specific)
-void testBoard::rc_init(rc_type_t rc_type) {(void)rc_type;}
-bool testBoard::rc_read(rosflight_firmware::RcStruct * rc_struct)
-{
-  return false;
-}
+void testBoard::rc_init(rc_type_t rc_type) { (void) rc_type; }
+bool testBoard::rc_read(rosflight_firmware::RcStruct * rc_struct) { return false; }
 void testBoard::pwm_write(float * value, uint32_t channels) {}
 void testBoard::pwm_init(const float * rate, uint32_t channels) {}
 void testBoard::pwm_disable() {}

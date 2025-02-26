@@ -42,7 +42,7 @@ Mavlink::Mavlink(Board & board)
 
 void Mavlink::init(uint32_t baud_rate, uint32_t dev)
 {
-  system_id_ = 1 ; //= static_cast<uint8_t>(RF_.params_.get_param_int(PARAM_SYSTEM_ID));
+  system_id_ = 1; //= static_cast<uint8_t>(RF_.params_.get_param_int(PARAM_SYSTEM_ID));
   board_.serial_init(baud_rate, dev);
   initialized_ = true;
 }
@@ -218,7 +218,7 @@ void Mavlink::handle_msg_offboard_control(const mavlink_message_t * const msg,
 }
 
 void Mavlink::handle_msg_offboard_control_full(const mavlink_message_t * const msg,
-                                          CommMessage * message)
+                                               CommMessage * message)
 {
   message->type = CommMessageType::MESSAGE_OFFBOARD_CONTROL;
   mavlink_offboard_control_full_t ctrl;
@@ -283,8 +283,8 @@ void Mavlink::send_baro(const PressureStruct & baro)
   send_message(msg);
 }
 
-void Mavlink::send_command_ack(uint64_t timestamp_us,
-                               CommMessageCommand rosflight_cmd, RosflightCmdResponse success)
+void Mavlink::send_command_ack(uint64_t timestamp_us, CommMessageCommand rosflight_cmd,
+                               RosflightCmdResponse success)
 {
   (void) timestamp_us; // unused
   mavlink_message_t msg;
@@ -299,10 +299,9 @@ void Mavlink::send_command_ack(uint64_t timestamp_us,
 void Mavlink::send_diff_pressure(const PressureStruct & p)
 {
 
-  float ias = (p.pressure<0.0?-1.0:1.0)*sqrt(fabs(p.pressure) / (0.5 * 1.225));
+  float ias = (p.pressure < 0.0 ? -1.0 : 1.0) * sqrt(fabs(p.pressure) / (0.5 * 1.225));
   mavlink_message_t msg;
-  mavlink_msg_diff_pressure_pack(system_id_, compid_, &msg, ias,
-                                 p.pressure, p.temperature);
+  mavlink_msg_diff_pressure_pack(system_id_, compid_, &msg, ias, p.pressure, p.temperature);
   send_message(msg);
 }
 
@@ -318,8 +317,9 @@ void Mavlink::send_heartbeat(uint64_t timestamp_us, bool fixed_wing)
 void Mavlink::send_imu(const ImuStruct & imu)
 {
   mavlink_message_t msg;
-  mavlink_msg_small_imu_pack(system_id_, compid_, &msg, imu.header.timestamp, imu.accel[0], imu.accel[1],
-                             imu.accel[2], imu.gyro[0], imu.gyro[1], imu.gyro[2], imu.temperature);
+  mavlink_msg_small_imu_pack(system_id_, compid_, &msg, imu.header.timestamp, imu.accel[0],
+                             imu.accel[1], imu.accel[2], imu.gyro[0], imu.gyro[1], imu.gyro[2],
+                             imu.temperature);
   send_message(msg, 0);
 }
 
@@ -370,8 +370,7 @@ void Mavlink::send_gnss(const GnssStruct & gnss)
   }
 }
 
-void Mavlink::send_log_message(uint64_t timestamp_us, LogSeverity severity,
-                               const char * text)
+void Mavlink::send_log_message(uint64_t timestamp_us, LogSeverity severity, const char * text)
 {
   (void) timestamp_us; // unused
   MAV_SEVERITY mavlink_severity = MAV_SEVERITY_ENUM_END;
@@ -412,8 +411,8 @@ void Mavlink::send_output_raw(const RcStruct & raw)
   send_message(msg);
 }
 
-void Mavlink::send_param_value_int(uint64_t timestamp_us, uint16_t index,
-                                   const char * const name, int32_t value, uint16_t param_count)
+void Mavlink::send_param_value_int(uint64_t timestamp_us, uint16_t index, const char * const name,
+                                   int32_t value, uint16_t param_count)
 {
   (void) timestamp_us; // unused
   mavlink_param_union_t param;
@@ -425,8 +424,8 @@ void Mavlink::send_param_value_int(uint64_t timestamp_us, uint16_t index,
   send_message(msg);
 }
 
-void Mavlink::send_param_value_float(uint64_t timestamp_us, uint16_t index,
-                                     const char * const name, float value, uint16_t param_count)
+void Mavlink::send_param_value_float(uint64_t timestamp_us, uint16_t index, const char * const name,
+                                     float value, uint16_t param_count)
 {
   (void) timestamp_us; // unused
   mavlink_message_t msg;
@@ -458,8 +457,8 @@ void Mavlink::send_sonar(const RangeStruct & range)
   send_message(msg);
 }
 
-void Mavlink::send_status(uint64_t timestamp_us, bool armed, bool failsafe,
-                          bool rc_override, bool offboard, uint8_t error_code, uint8_t control_mode,
+void Mavlink::send_status(uint64_t timestamp_us, bool armed, bool failsafe, bool rc_override,
+                          bool offboard, uint8_t error_code, uint8_t control_mode,
                           int16_t num_errors, int16_t loop_time_us)
 {
   (void) timestamp_us; // unused
@@ -485,8 +484,7 @@ void Mavlink::send_version(uint64_t timestamp_us, const char * const version)
   send_message(msg);
 }
 
-void Mavlink::send_error_data(uint64_t timestamp_us,
-                              const StateManager::BackupData & error_data)
+void Mavlink::send_error_data(uint64_t timestamp_us, const StateManager::BackupData & error_data)
 {
   (void) timestamp_us; // unused
   mavlink_message_t msg;

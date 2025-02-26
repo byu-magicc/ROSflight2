@@ -71,32 +71,31 @@ public:
 
   void send_imu(const ImuStruct & imu) override;
 
-  void send_log_message(uint64_t timestamp_us, LogSeverity severity,
-                        const char * text) override;
+  void send_log_message(uint64_t timestamp_us, LogSeverity severity, const char * text) override;
 
   void send_mag(const MagStruct & mag) override;
 
-//  void send_named_value_int(uint64_t timestamp_us, const char * const name,
-//                            int32_t value) override;
-//
-//  void send_named_value_float(uint64_t imestamp_us, const char * const name,
-//                              float value) override;
+  //  void send_named_value_int(uint64_t timestamp_us, const char * const name,
+  //                            int32_t value) override;
+  //
+  //  void send_named_value_float(uint64_t imestamp_us, const char * const name,
+  //                              float value) override;
 
   void send_output_raw(const RcStruct & raw) override;
 
-  void send_param_value_int(uint64_t timestamp_us, uint16_t index,
-                            const char * const name, int32_t value, uint16_t param_count) override;
+  void send_param_value_int(uint64_t timestamp_us, uint16_t index, const char * const name,
+                            int32_t value, uint16_t param_count) override;
 
-  void send_param_value_float(uint64_t timestamp_us, uint16_t index,
-                              const char * const name, float value, uint16_t param_count) override;
+  void send_param_value_float(uint64_t timestamp_us, uint16_t index, const char * const name,
+                              float value, uint16_t param_count) override;
 
   void send_rc_raw(const RcStruct & rc) override;
 
   void send_sonar(const RangeStruct & sonar) override;
 
-  void send_status(uint64_t timestamp_us, bool armed, bool failsafe,
-                   bool rc_override, bool offboard, uint8_t error_code, uint8_t control_mode,
-                   int16_t num_errors, int16_t loop_time_us) override;
+  void send_status(uint64_t timestamp_us, bool armed, bool failsafe, bool rc_override,
+                   bool offboard, uint8_t error_code, uint8_t control_mode, int16_t num_errors,
+                   int16_t loop_time_us) override;
 
   void send_timesync(uint64_t timestamp_us, int64_t tc1, int64_t ts1) override;
 
@@ -104,8 +103,7 @@ public:
 
   void send_gnss(const GnssStruct & gnss) override;
 
-  void send_error_data(uint64_t timestamp_us,
-                       const StateManager::BackupData & error_data) override;
+  void send_error_data(uint64_t timestamp_us, const StateManager::BackupData & error_data) override;
 
   void send_battery_status(const BatteryStruct & batt) override;
 

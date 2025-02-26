@@ -57,10 +57,7 @@ void RC::init_rc()
 RcStruct * RC::get_rc(void) { return &rc_; }
 float RC::read_chan(uint8_t chan) { return rc_.chan[chan]; }
 
-bool RC::receive(void)
-{
-  return RF_.board_.rc_read(&rc_);
-}
+bool RC::receive(void) { return RF_.board_.rc_read(&rc_); }
 
 void RC::param_change_callback(uint16_t param_id)
 {
@@ -175,7 +172,7 @@ bool RC::check_rc_lost()
   bool failsafe = false;
 
   // If the board reports that we have lost RC, tell the state manager
-  if(rc_.frameLost | rc_.failsafeActivated) {
+  if (rc_.frameLost | rc_.failsafeActivated) {
     failsafe = true;
   } else {
     // go into failsafe if we get an invalid RC command for any channel
@@ -285,9 +282,10 @@ bool RC::new_command()
   }
 }
 
-uint16_t RC::fake_rx(uint16_t *chan, uint16_t len, bool lost, bool failsafe) {
-  len = (len<RC_STRUCT_CHANNELS)?len:RC_STRUCT_CHANNELS;
-  for(int i=0;i<len;i++)  rc_.chan[i] = (static_cast<float>(chan[i])-1000.)/1000.;
+uint16_t RC::fake_rx(uint16_t * chan, uint16_t len, bool lost, bool failsafe)
+{
+  len = (len < RC_STRUCT_CHANNELS) ? len : RC_STRUCT_CHANNELS;
+  for (int i = 0; i < len; i++) rc_.chan[i] = (static_cast<float>(chan[i]) - 1000.) / 1000.;
   rc_.failsafeActivated = failsafe;
   rc_.frameLost = lost;
   rc_.nChan = RC_STRUCT_CHANNELS;
@@ -296,6 +294,5 @@ uint16_t RC::fake_rx(uint16_t *chan, uint16_t len, bool lost, bool failsafe) {
   run();
   return len;
 };
-
 
 } // namespace rosflight_firmware
