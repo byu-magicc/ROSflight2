@@ -291,7 +291,8 @@ uint16_t RC::fake_rx(uint16_t *chan, uint16_t len, bool lost, bool failsafe) {
   rc_.failsafeActivated = failsafe;
   rc_.frameLost = lost;
   rc_.nChan = RC_STRUCT_CHANNELS;
-  rc_.timestamp = RF_.board_.clock_micros();
+  rc_.header.timestamp = RF_.board_.clock_micros();
+  rc_.header.status = failsafe | lost;
   run();
   return len;
 };

@@ -130,7 +130,7 @@ void Estimator::run()
   // Timing Setup
   //
 
-  const uint64_t now_us = RF_.sensors_.get_imu()->timestamp;
+  const uint64_t now_us = RF_.sensors_.get_imu()->header.timestamp;
 
   if (last_time_ == 0) {
     last_time_ = now_us;
@@ -223,7 +223,7 @@ void Estimator::run()
   // Save off adjust gyro measurements with estimated biases for control
   state_.angular_velocity = gyro_LPF_ - bias_;
 
-  attitude_.timestamp = state_.timestamp_us;
+  attitude_.header.timestamp = state_.timestamp_us;
 
   attitude_.q[0] = state_.attitude.w;
   attitude_.q[1] = state_.attitude.x;
