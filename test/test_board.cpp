@@ -79,7 +79,7 @@ bool testBoard::imu_read(rosflight_firmware::ImuStruct * imu)
     imu->gyro[i] = gyro_[i];
   }
   imu->temperature = 25.0;
-  imu->timestamp = time_us_;
+  imu->header.timestamp = time_us_;
   return true;
 }
 
